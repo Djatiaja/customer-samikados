@@ -18,6 +18,30 @@
       <section class="w-full lg:w-1/3 bg-white p-8 shadow-xl rounded-lg">
         <h2 class="text-xl lg:text-2xl font-bold mb-4 text-gray-800">REGISTER</h2>
         <form @submit.prevent="register">
+          <!-- Username -->
+          <div class="mb-4">
+            <label for="username" class="sr-only">Username</label>
+            <input
+              id="username"
+              v-model="username"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              placeholder="Username"
+              type="text"
+            />
+          </div>
+
+          <!-- Nama -->
+          <div class="mb-4">
+            <label for="nama" class="sr-only">Nama</label>
+            <input
+              id="nama"
+              v-model="nama"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              placeholder="Nama Lengkap"
+              type="text"
+            />
+          </div>
+
           <!-- Phone Number -->
           <div class="mb-4">
             <label for="phone" class="sr-only">No. Telp</label>
@@ -54,6 +78,18 @@
             />
           </div>
 
+          <!-- Konfirmasi Password -->
+          <div class="mb-4">
+            <label for="confirmPassword" class="sr-only">Konfirmasi Password</label>
+            <input
+              id="confirmPassword"
+              v-model="confirmPassword"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              placeholder="Konfirmasi Password"
+              type="password"
+            />
+          </div>
+
           <!-- Register Button -->
           <AuthMainButton text="Register" @click="register" />
 
@@ -83,14 +119,28 @@ export default {
   },
   data() {
     return {
+      username: '',
+      nama: '',
       phone: '',
       email: '',
       password: '',
+      confirmPassword: '',
     }
   },
   methods: {
     register() {
-      console.log('Registering user with:', this.phone, this.email, this.password)
+      if (this.password !== this.confirmPassword) {
+        alert('Password dan konfirmasi password tidak cocok!')
+        return
+      }
+      console.log(
+        'Registering user with:',
+        this.username,
+        this.nama,
+        this.phone,
+        this.email,
+        this.password,
+      )
       this.$router.push('/verification')
     },
   },
