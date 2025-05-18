@@ -59,6 +59,7 @@
         <ProductCard1
           v-for="(product, index) in products"
           :key="index"
+          :id="product.id"
           :name="product.name"
           :price="product.price"
           :link="product.link"
@@ -99,7 +100,7 @@ export default {
         const response = await axios.get(`${baseUrl}/banners`)
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           banners.value = response.data.data.slice(0, 5).map((banner, index) => ({
-            image: banner.picture_url.replace(/\\\//g, '/'), // Normalize URL
+            image: banner.picture_url.replace(/\\\//g, '/'),
             alt: banner.name || `Banner ${index + 1}`,
           }))
         } else {
@@ -125,7 +126,7 @@ export default {
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           categories.value = response.data.data.map((category) => ({
             name: category.name,
-            image: category.icon_url.replace(/\\\//g, '/'), // Normalize URL
+            image: category.icon_url.replace(/\\\//g, '/'),
             link: '/category',
           }))
         } else {
@@ -148,10 +149,11 @@ export default {
         const response = await axios.get(`${baseUrl}/products`)
         if (response.data.status === 'success' && Array.isArray(response.data.data.products)) {
           products.value = response.data.data.products.map((product) => ({
+            id: product.id, // Ensure id is included
             name: product.name,
             price: product.price.toString(),
             image: product.thumbnail_url,
-            link: '/product-details',
+            link: `/product-details/${product.id}`, // Dynamic link
           }))
         } else {
           throw new Error('Invalid API response')
@@ -160,10 +162,11 @@ export default {
         console.error('Error fetching products:', error)
         products.value = [
           {
+            id: 1,
             name: 'Fallback Product',
             price: '0',
             image: 'https://placehold.co/200x200?text=Product',
-            link: '/product-details',
+            link: '/product-details/1',
           },
         ]
       }
@@ -188,12 +191,12 @@ export default {
 </script>
 
 <style scoped>
-:deep(.swiper-button-next),
-:deep(.swiper-button-prev) {
+:depth(.swiper-button-next),
+:depth(.swiper-button-prev) {
   color: #dc2626; /* Red-600 */
 }
 
-:deep(.swiper-pagination-bullet-active) {
+:depth(.swiper-pagination-bullet-active) {
   background-color: #b91c1c !important;
 }
 </style>

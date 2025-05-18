@@ -37,6 +37,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router' // Import useRoute
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
@@ -56,6 +57,7 @@ export default {
     Reviews,
   },
   setup() {
+    const route = useRoute() // Get route object
     const isLoaded = ref(false)
     const product = reactive({
       name: '',
@@ -100,9 +102,9 @@ export default {
       },
     ])
 
-    const fetchProduct = async () => {
+    const fetchProduct = async (productId) => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/api/products/5')
+        const response = await axios.get(`http://127.0.0.1:8000/api/products/${productId}`)
         const data = response.data.data.product
 
         product.name = data.name || ''
@@ -150,7 +152,23 @@ export default {
       }
     }
 
-    onMounted(fetchProduct)
+    onMounted(() => {
+      const productId = route.params.id // Get product ID from route
+      if (productId) {
+        fetchProduct(productId)
+      } else {
+        Swal.fire({
+          title: 'Error',
+          text: 'ID produk tidak ditemukan.',
+          icon: 'error',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Tutup',
+        })
+      }
+    })
 
     const totalPrice = computed(() => {
       const selectedVariant = sizeOptions.value.find(

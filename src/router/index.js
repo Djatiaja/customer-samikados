@@ -32,7 +32,8 @@ const routes = [
   { path: '/samikados', component: HomeBeforeLogin },
   { path: '/home', component: HomeAfterLogin },
   { path: '/category', component: CategoryView },
-  { path: '/product-details', component: DetailProduct },
+  { path: '/product-details/:id', component: DetailProduct },
+  { path: '/product-details', redirect: '/samikados' }, // Redirect to home if no ID
   { path: '/orders', component: Orders },
   { path: '/cart', component: Cart },
   { path: '/notifications', component: Notification },
@@ -40,10 +41,12 @@ const routes = [
   { path: '/track-order', component: TrackOrder },
   { path: '/review-order', component: ReviewOrder },
   { path: '/account-settings', component: AccountSetting },
+  { path: '/:pathMatch(.*)*', component: NotFoundPage }, // Catch-all for unmatched routes
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
 })
+
 export default router
