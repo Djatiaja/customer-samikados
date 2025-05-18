@@ -8,7 +8,9 @@
         class="relative my-8"
         style="margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); width: 100vw"
       >
+        <div v-if="loading" class="text-center py-8">Loading banners...</div>
         <Swiper
+          v-else
           :modules="[Pagination, Navigation]"
           :slides-per-view="1"
           :space-between="30"
@@ -22,7 +24,12 @@
           class="swiper centered-slide-carousel swiper-container relative w-full"
         >
           <SwiperSlide v-for="(banner, index) in banners" :key="index">
-            <img :src="banner.image" :alt="banner.alt" class="w-full h-full object-cover" />
+            <img
+              :src="banner.image"
+              :alt="banner.alt"
+              class="w-full h-[500px] object-cover"
+              style="max-width: 1500px; margin: 0 auto;"
+            />
           </SwiperSlide>
         </Swiper>
 
@@ -65,12 +72,13 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Pagination, Navigation } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/navigation'
+import axios from 'axios'
 
 import AuthFooter from '@/components/AuthFooter.vue'
 import CategoryItem1 from '@/components/CategoryItem1.vue'
@@ -81,13 +89,36 @@ export default {
   components: { HeaderBeforeLogin, AuthFooter, Swiper, SwiperSlide, CategoryItem1, ProductCard1 },
   setup() {
     // Data banner slider
-    const banners = ref([
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 1' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 2' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 3' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 4' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 5' },
-    ])
+    const banners = ref([])
+    const loading = ref(true)
+
+    // Fetch banners from API
+    const fetchBanners = async () => {
+      try {
+        const response = await axios.get('http://127.0.0.1:8000/api/banners')
+        if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+          banners.value = response.data.data.slice(0, 5).map((banner, index) => ({
+            // Use placeholder with 1500x500 to ensure consistent size
+            image: `https://placehold.co/1500x500?text=Banner+${index + 1}`,
+            alt: banner.name || `Banner ${index + 1}`,
+          }))
+        } else {
+          throw new Error('Invalid API response')
+        }
+      } catch (error) {
+        console.error('Error fetching banners:', error)
+        // Fallback to placeholder banners
+        banners.value = [
+          { image: 'https://placehold.co/1500x500?text=Banner+1', alt: 'Banner 1' },
+          { image: 'https://placehold.co/1500x500?text=Banner+2', alt: 'Banner 2' },
+          { image: 'https://placehold.co/1500x500?text=Banner+3', alt: 'Banner 3' },
+          { image: 'https://placehold.co/1500x500?text=Banner+4', alt: 'Banner 4' },
+          { image: 'https://placehold.co/1500x500?text=Banner+5', alt: 'Banner 5' },
+        ]
+      } finally {
+        loading.value = false
+      }
+    }
 
     // Data kategori
     const categories = ref([
@@ -132,10 +163,16 @@ export default {
       },
     ])
 
+    // Fetch banners when component is mounted
+    onMounted(() => {
+      fetchBanners()
+    })
+
     return {
       banners,
       categories,
       products,
+      loading,
       Pagination,
       Navigation,
     }
