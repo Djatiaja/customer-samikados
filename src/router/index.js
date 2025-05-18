@@ -11,8 +11,10 @@ import Checkout from '@/Main/Checkout.vue'
 import DetailProduct from '@/Main/DetailProduct.vue'
 import HomeAfterLogin from '@/Main/HomeAfterLogin.vue'
 import HomeBeforeLogin from '@/Main/HomeBeforeLogin.vue'
+import NotFoundPage from '@/Main/NotFoundPage.vue'
 import Notification from '@/Main/Notification.vue'
 import Orders from '@/Main/Orders.vue'
+import RedirectPage from '@/Main/RedirectPage.vue'
 import ReviewOrder from '@/Main/ReviewOrder.vue'
 import TrackOrder from '@/Main/TrackOrder.vue'
 import { createRouter, createWebHistory } from 'vue-router'
@@ -25,6 +27,8 @@ const routes = [
   { path: '/forgot-password', component: ForgotPassword },
   { path: '/otp-password', component: OtpPage },
   { path: '/reset-password', component: ResetPassword },
+  { path: '/not-found', component: NotFoundPage },
+  { path: '/redirect-page', component: RedirectPage },
   { path: '/samikados', component: HomeBeforeLogin },
   { path: '/home', component: HomeAfterLogin },
   { path: '/category', component: CategoryView },
