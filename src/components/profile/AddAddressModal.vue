@@ -1,73 +1,11 @@
 <template>
-  <div class="modal" v-if="visible">
-    <div class="modal-content">
-      <h2>Tambah Alamat Baru</h2>
-      <div class="mb-3">
-        <label class="block text-left mb-1">Provinsi</label>
-        <select v-model="form.province_id" class="w-full p-2 border rounded">
-          <option value="">Pilih Provinsi</option>
-          <option v-for="province in provinces" :key="province.id" :value="province.id">
-            {{ province.name }}
-          </option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="block text-left mb-1">Kabupaten/Kota</label>
-        <select
-          v-model="form.city_id"
-          class="w-full p-2 border rounded"
-          :disabled="!form.province_id"
-        >
-          <option value="">Pilih Kabupaten/Kota</option>
-          <option v-for="regency in regencies" :key="regency.id" :value="regency.id">
-            {{ regency.name }}
-          </option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="block text-left mb-1">Kecamatan</label>
-        <select
-          v-model="form.district_id"
-          class="w-full p-2 border rounded"
-          :disabled="!form.city_id"
-        >
-          <option value="">Pilih Kecamatan</option>
-          <option v-for="district in districts" :key="district.id" :value="district.id">
-            {{ district.name }}
-          </option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="block text-left mb-1">Kelurahan/Desa</label>
-        <select
-          v-model="form.village_id"
-          class="w-full p-2 border rounded"
-          :disabled="!form.district_id"
-        >
-          <option value="">Pilih Kelurahan/Desa</option>
-          <option v-for="village in villages" :key="village.id" :value="village.id">
-            {{ village.name }}
-          </option>
-        </select>
-      </div>
-      <textarea
-        v-model="form.address"
-        class="w-full p-2 border rounded mb-3"
-        placeholder="Masukkan alamat lengkap"
-      ></textarea>
-      <div class="mb-3">
-        <input v-model="form.is_default" type="checkbox" class="mr-2" />
-        <label>Jadikan sebagai alamat utama</label>
-      </div>
-      <button @click="submit" class="submit-btn mr-2">Tambah</button>
-      <button @click="$emit('close')" class="close-btn">Batal</button>
-    </div>
-  </div>
+  <div></div>
 </template>
 
 <script>
 import { ref, watch } from 'vue'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 export default {
   props: {
@@ -81,121 +19,416 @@ export default {
     },
   },
   setup(props, { emit }) {
-    const provinces = ref([])
-    const regencies = ref([])
-    const districts = ref([])
-    const villages = ref([])
+    const base_url = 'http://127.0.0.1:8000/api'
     const form = ref({
-      province_id: '',
-      city_id: '',
-      district_id: '',
-      village_id: '',
+      name: '',
       address: '',
+      postal_code: '',
+      phone: '',
       is_default: false,
+      province_id: null,
+      city_id: null,
+      subdistrict_id: null,
     })
+    const provinces = ref([])
+    const cities = ref([])
+    const subdistricts = ref([])
 
     const fetchProvinces = async () => {
       try {
-        const response = await axios.get(
-          'https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json',
-        )
-        provinces.value = response.data
+        const token = localStorage.getItem('token')
+        const response = await axios.get(`${base_url}/customer/address/provinces`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (response.data.status === 'success') {
+          provinces.value = response.data.data
+        }
       } catch (error) {
         console.error('Error fetching provinces:', error)
       }
     }
 
-    const fetchRegencies = async (provinceId) => {
+    const fetchCities = async (province_id) => {
+      cities.value = []
+      subdistricts.value = []
+      if (!province_id) return
       try {
-        const response = await axios.get(
-          `https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinceId}.json`,
-        )
-        regencies.value = response.data
+        const token = localStorage.getItem('token')
+        const response = await axios.get(`${base_url}/customer/address/cities/${province_id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (response.data.status === 'success') {
+          cities.value = response.data.data
+        }
       } catch (error) {
-        console.error('Error fetching regencies:', error)
+        console.error('Error fetching cities:', error)
       }
     }
 
-    const fetchDistricts = async (regencyId) => {
+    const fetchSubdistricts = async (city_id) => {
+      subdistricts.value = []
+      if (!city_id) return
       try {
-        const response = await axios.get(
-          `https://www.emsifa.com/api-wilayah-indonesia/api/districts/${regencyId}.json`,
-        )
-        districts.value = response.data
+        const token = localStorage.getItem('token')
+        const response = await axios.get(`${base_url}/customer/address/subdistricts/${city_id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (response.data.status === 'success') {
+          subdistricts.value = response.data.data
+        }
       } catch (error) {
-        console.error('Error fetching districts:', error)
+        console.error('Error fetching subdistricts:', error)
       }
     }
 
-    const fetchVillages = async (districtId) => {
-      try {
-        const response = await axios.get(
-          `https://www.emsifa.com/api-wilayah-indonesia/api/villages/${districtId}.json`,
-        )
-        villages.value = response.data
-      } catch (error) {
-        console.error('Error fetching villages:', error)
+    const updateDropdowns = () => {
+      const provinceSelect = document.getElementById('province_id')
+      const citySelect = document.getElementById('city_id')
+      const subdistrictSelect = document.getElementById('subdistrict_id')
+
+      if (provinceSelect) {
+        provinceSelect.innerHTML = `
+          <option value="">Pilih Provinsi</option>
+          ${provinces.value
+            .map(
+              (province) =>
+                `<option value="${province.id}" ${
+                  province.id === form.value.province_id ? 'selected' : ''
+                }>${province.name}</option>`,
+            )
+            .join('')}
+        `
+      }
+
+      if (citySelect) {
+        citySelect.innerHTML = `
+          <option value="">Pilih Kota/Kabupaten</option>
+          ${cities.value
+            .map(
+              (city) =>
+                `<option value="${city.id}" ${
+                  city.id === form.value.city_id ? 'selected' : ''
+                }>${city.name}</option>`,
+            )
+            .join('')}
+        `
+      }
+
+      if (subdistrictSelect) {
+        subdistrictSelect.innerHTML = `
+          <option value="">Pilih Kecamatan</option>
+          ${subdistricts.value
+            .map(
+              (subdistrict) =>
+                `<option value="${subdistrict.id}" ${
+                  subdistrict.id === form.value.subdistrict_id ? 'selected' : ''
+                }>${subdistrict.name}</option>`,
+            )
+            .join('')}
+        `
       }
     }
 
-    fetchProvinces()
+    const showAddressModal = async () => {
+      try {
+        await fetchProvinces()
+        if (form.value.province_id) await fetchCities(form.value.province_id)
+        if (form.value.city_id) await fetchSubdistricts(form.value.city_id)
+
+        Swal.fire({
+          title: `<h3 class="text-lg font-bold">Tambah Alamat Baru</h3>`,
+          html: `
+            <form id="addressForm" class="text-left form-compact">
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">Nama Penerima</label>
+                <input
+                  id="name"
+                  type="text"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                  value="${form.value.name}"
+                />
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">Provinsi</label>
+                <select
+                  id="province_id"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                >
+                  <option value="">Pilih Provinsi</option>
+                  ${provinces.value
+                    .map(
+                      (province) =>
+                        `<option value="${province.id}" ${
+                          province.id === form.value.province_id ? 'selected' : ''
+                        }>${province.name}</option>`,
+                    )
+                    .join('')}
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">Kota/Kabupaten</label>
+                <select
+                  id="city_id"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                >
+                  <option value="">Pilih Kota/Kabupaten</option>
+                  ${cities.value
+                    .map(
+                      (city) =>
+                        `<option value="${city.id}" ${
+                          city.id === form.value.city_id ? 'selected' : ''
+                        }>${city.name}</option>`,
+                    )
+                    .join('')}
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">Kecamatan</label>
+                <select
+                  id="subdistrict_id"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                >
+                  <option value="">Pilih Kecamatan</option>
+                  ${subdistricts.value
+                    .map(
+                      (subdistrict) =>
+                        `<option value="${subdistrict.id}" ${
+                          subdistrict.id === form.value.subdistrict_id ? 'selected' : ''
+                        }>${subdistrict.name}</option>`,
+                    )
+                    .join('')}
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">Kode Pos</label>
+                <input
+                  id="postal_code"
+                  type="text"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                  value="${form.value.postal_code}"
+                />
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">Detail Alamat</label>
+                <textarea
+                  id="address"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                >${form.value.address}</textarea>
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium text-sm mb-1">No. Penerima</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                  value="${form.value.phone}"
+                />
+              </div>
+              <div class="mb-4">
+                <label class="flex items-center">
+                  <input
+                    id="is_default"
+                    type="checkbox"
+                    class="mr-2"
+                    ${form.value.is_default ? 'checked' : ''}
+                  />
+                  Jadikan Alamat Utama
+                </label>
+              </div>
+            </form>
+          `,
+          showCancelButton: true,
+          cancelButtonText: 'Batal',
+          confirmButtonText: 'Tambah',
+          focusConfirm: false,
+          width: '600px',
+          maxWidth: '700px',
+          buttonsStyling: false,
+          customClass: {
+            container: 'swal-container',
+            popup: 'swal-modal-popup rounded-lg',
+            htmlContainer: 'pb-2 px-1',
+            confirmButton:
+              'bg-red-600 text-white px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
+            cancelButton:
+              'bg-gray-300 text-gray-700 px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
+            actions: 'flex justify-center space-x-6',
+          },
+          didOpen: () => {
+            const modalContent = document.querySelector('.swal2-content')
+            if (modalContent) {
+              modalContent.style.maxHeight = '70vh'
+              modalContent.style.overflowY = 'auto'
+              modalContent.style.overflowX = 'hidden'
+            }
+
+            const styleElement = document.createElement('style')
+            styleElement.textContent = `
+              .swal2-content::-webkit-scrollbar {
+                width: 6px;
+              }
+              .swal2-content::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 10px;
+              }
+              .swal2-content::-webkit-scrollbar-thumb {
+                background: #dc2626;
+                border-radius: 10px;
+              }
+              .swal2-content::-webkit-scrollbar-thumb:hover {
+                background: #b91c1c;
+              }
+              .form-compact input,
+              .form-compact select,
+              .form-compact textarea {
+                font-size: 0.875rem;
+                padding: 0.5rem;
+              }
+              .form-compact label {
+                font-size: 0.75rem;
+                margin-bottom: 0.25rem;
+              }
+            `
+            document.head.appendChild(styleElement)
+
+            document.getElementById('name').addEventListener('input', (e) => {
+              form.value.name = e.target.value
+            })
+
+            document.getElementById('address').addEventListener('input', (e) => {
+              form.value.address = e.target.value
+            })
+
+            document.getElementById('postal_code').addEventListener('input', (e) => {
+              form.value.postal_code = e.target.value
+            })
+
+            document.getElementById('phone').addEventListener('input', (e) => {
+              form.value.phone = e.target.value
+            })
+
+            document.getElementById('province_id').addEventListener('change', (e) => {
+              form.value.province_id = e.target.value ? Number(e.target.value) : null
+              form.value.city_id = null
+              form.value.subdistrict_id = null
+              fetchCities(form.value.province_id)
+            })
+
+            document.getElementById('city_id').addEventListener('change', (e) => {
+              form.value.city_id = e.target.value ? Number(e.target.value) : null
+              form.value.subdistrict_id = null
+              fetchSubdistricts(form.value.city_id)
+            })
+
+            document.getElementById('subdistrict_id').addEventListener('change', (e) => {
+              form.value.subdistrict_id = e.target.value ? Number(e.target.value) : null
+            })
+
+            document.getElementById('is_default').addEventListener('change', (e) => {
+              form.value.is_default = e.target.checked
+            })
+          },
+          preConfirm: () => {
+            const name = document.getElementById('name').value
+            const address = document.getElementById('address').value
+            const postal_code = document.getElementById('postal_code').value
+            const phone = document.getElementById('phone').value
+            const province_id = document.getElementById('province_id').value
+            const city_id = document.getElementById('city_id').value
+            const subdistrict_id = document.getElementById('subdistrict_id').value
+            const is_default = document.getElementById('is_default').checked
+
+            if (
+              !name ||
+              !address ||
+              !postal_code ||
+              !phone ||
+              !province_id ||
+              !city_id ||
+              !subdistrict_id
+            ) {
+              Swal.showValidationMessage('Semua field wajib diisi')
+              return false
+            }
+
+            if (!/^\d{5}$/.test(postal_code)) {
+              Swal.showValidationMessage('Kode pos harus 5 digit angka')
+              return false
+            }
+
+            if (!/^\+?\d{10,13}$/.test(phone)) {
+              Swal.showValidationMessage('No. telepon tidak valid')
+              return false
+            }
+
+            return {
+              name,
+              address,
+              postal_code,
+              phone,
+              province_id: Number(province_id),
+              city_id: Number(city_id),
+              subdistrict_id: Number(subdistrict_id),
+              is_default,
+              subdistrict: {
+                id: Number(subdistrict_id),
+                name: subdistricts.value.find((s) => s.id === Number(subdistrict_id))?.name || '',
+                city: {
+                  id: Number(city_id),
+                  name: cities.value.find((c) => c.id === Number(city_id))?.name || '',
+                  province: {
+                    id: Number(province_id),
+                    name: provinces.value.find((p) => p.id === Number(province_id))?.name || '',
+                  },
+                },
+              },
+            }
+          },
+        })
+          .then((result) => {
+            if (result.isConfirmed && result.value) {
+              emit('add-address', result.value)
+              form.value = {
+                name: '',
+                address: '',
+                postal_code: '',
+                phone: '',
+                is_default: false,
+                province_id: null,
+                city_id: null,
+                subdistrict_id: null,
+              }
+              emit('close')
+            } else if (result.isDismissed) {
+              emit('close')
+            }
+          })
+          .catch((error) => {
+            // Silent catch
+          })
+      } catch (error) {
+        // Silent catch
+      }
+    }
 
     watch(
-      () => form.value.province_id,
-      async (newProvinceId) => {
-        if (newProvinceId) {
-          regencies.value = []
-          districts.value = []
-          villages.value = []
-          await fetchRegencies(newProvinceId)
+      () => props.visible,
+      async (newVisible) => {
+        if (newVisible) {
+          await showAddressModal()
         }
       },
+      { immediate: true },
     )
 
     watch(
-      () => form.value.city_id,
-      async (newCityId) => {
-        if (newCityId) {
-          districts.value = []
-          villages.value = []
-          await fetchDistricts(newCityId)
-        }
+      () => [cities.value, subdistricts.value],
+      () => {
+        updateDropdowns()
       },
     )
 
-    watch(
-      () => form.value.district_id,
-      async (newDistrictId) => {
-        if (newDistrictId) {
-          villages.value = []
-          await fetchVillages(newDistrictId)
-        }
-      },
-    )
-
-    const submit = () => {
-      if (
-        !form.value.address.trim() ||
-        !form.value.province_id ||
-        !form.value.city_id ||
-        !form.value.district_id ||
-        !form.value.village_id
-      ) {
-        alert('Semua field harus diisi')
-        return
-      }
-      emit('add-address', { ...form.value })
-      form.value = {
-        province_id: '',
-        city_id: '',
-        district_id: '',
-        village_id: '',
-        address: '',
-        is_default: false,
-      }
-    }
-
-    return { provinces, regencies, districts, villages, form, submit }
+    return { form, showAddressModal, provinces, cities, subdistricts }
   },
 }
 </script>
