@@ -109,11 +109,11 @@ export default {
       } catch (error) {
         console.error('Error fetching banners:', error)
         banners.value = [
-          { image: null, alt: 'Banner 1' },
-          { image: null, alt: 'Banner 2' },
-          { image: null, alt: 'Banner 3' },
-          { image: null, alt: 'Banner 4' },
-          { image: null, alt: 'Banner 5' },
+          { image: 'https://placehold.co/1500x500?text=Banner+1', alt: 'Banner 1' },
+          { image: 'https://placehold.co/1500x500?text=Banner+2', alt: 'Banner 2' },
+          { image: 'https://placehold.co/1500x500?text=Banner+3', alt: 'Banner 3' },
+          { image: 'https://placehold.co/1500x500?text=Banner+4', alt: 'Banner 4' },
+          { image: 'https://placehold.co/1500x500?text=Banner+5', alt: 'Banner 5' },
         ]
       } finally {
         loading.value = false
@@ -127,7 +127,7 @@ export default {
           categories.value = response.data.data.map((category) => ({
             name: category.name,
             image: category.icon_url.replace(/\\\//g, '/'),
-            link: '/category',
+            link: `/category/${category.id}`,
           }))
         } else {
           throw new Error('Invalid API response')
@@ -149,11 +149,11 @@ export default {
         const response = await axios.get(`${baseUrl}/products`)
         if (response.data.status === 'success' && Array.isArray(response.data.data.products)) {
           products.value = response.data.data.products.map((product) => ({
-            id: product.id, // Ensure id is included
+            id: product.id,
             name: product.name,
             price: product.price.toString(),
-            image: product.thumbnail_url,
-            link: `/product-details/${product.id}`, // Dynamic link
+            image: product.thumbnail_url.replace(/\\\//g, '/'),
+            link: `/product-details/${product.id}`,
           }))
         } else {
           throw new Error('Invalid API response')
@@ -191,12 +191,12 @@ export default {
 </script>
 
 <style scoped>
-:depth(.swiper-button-next),
-:depth(.swiper-button-prev) {
+:deep(.swiper-button-next),
+:deep(.swiper-button-prev) {
   color: #dc2626; /* Red-600 */
 }
 
-:depth(.swiper-pagination-bullet-active) {
+:deep(.swiper-pagination-bullet-active) {
   background-color: #b91c1c !important;
 }
 </style>
