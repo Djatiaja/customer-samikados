@@ -67,27 +67,41 @@
           </div>
 
           <!-- Password -->
-          <div class="mb-4">
+          <div class="mb-4 relative">
             <label for="password" class="sr-only">Password</label>
             <input
               id="password"
               v-model="password"
-              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              :type="showPassword ? 'text' : 'password'"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600 pr-10"
               placeholder="Password"
-              type="password"
             />
+            <button
+              type="button"
+              class="absolute inset-y-0 right-3 flex items-center text-gray-500"
+              @click="togglePassword"
+            >
+              <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+            </button>
           </div>
 
           <!-- Konfirmasi Password -->
-          <div class="mb-4">
+          <div class="mb-4 relative">
             <label for="confirmPassword" class="sr-only">Konfirmasi Password</label>
             <input
               id="confirmPassword"
               v-model="confirmPassword"
-              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              :type="showConfirmPassword ? 'text' : 'password'"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600 pr-10"
               placeholder="Konfirmasi Password"
-              type="password"
             />
+            <button
+              type="button"
+              class="absolute inset-y-0 right-3 flex items-center text-gray-500"
+              @click="toggleConfirmPassword"
+            >
+              <i :class="showConfirmPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+            </button>
           </div>
 
           <!-- Register Button -->
@@ -125,9 +139,17 @@ export default {
       email: '',
       password: '',
       confirmPassword: '',
+      showPassword: false,
+      showConfirmPassword: false,
     }
   },
   methods: {
+    togglePassword() {
+      this.showPassword = !this.showPassword
+    },
+    toggleConfirmPassword() {
+      this.showConfirmPassword = !this.showConfirmPassword
+    },
     register() {
       if (this.password !== this.confirmPassword) {
         alert('Password dan konfirmasi password tidak cocok!')
