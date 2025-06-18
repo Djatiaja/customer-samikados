@@ -1,6 +1,8 @@
+```vue
 <template>
   <div class="flex flex-col min-h-screen" v-if="isLoaded">
-    <HeaderAfterLogin />
+    <HeaderBeforeLogin v-if="!isAuthenticated" />
+    <HeaderAfterLogin v-else />
     <div class="container mx-auto p-4 sm:p-8 flex-1">
       <main class="container mx-auto p-8">
         <div class="lg:flex lg:justify-evenly">
@@ -37,9 +39,10 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Swal from 'sweetalert2'
+import HeaderBeforeLogin from '@/components/HeaderBeforeLogin.vue'
 import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
 import AuthFooter from '@/components/AuthFooter.vue'
 import ProductImages from '@/components/details-product/ProductImages.vue'
@@ -49,6 +52,7 @@ import Reviews from '@/components/details-product/Reviews.vue'
 
 export default {
   components: {
+    HeaderBeforeLogin,
     HeaderAfterLogin,
     AuthFooter,
     ProductImages,
@@ -58,7 +62,9 @@ export default {
   },
   setup() {
     const route = useRoute()
+    const router = useRouter()
     const isLoaded = ref(false)
+    const isAuthenticated = computed(() => !!localStorage.getItem('token'))
     const product = reactive({
       name: '',
       soldCount: '0',
@@ -214,6 +220,21 @@ export default {
     }
 
     const toggleBookmark = () => {
+      if (!isAuthenticated.value) {
+        Swal.fire({
+          title: 'Perhatian',
+          text: 'Silakan login untuk menambahkan ke wishlist',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Login',
+        }).then(() => {
+          router.push('/login')
+        })
+        return
+      }
       isBookmarked.value = !isBookmarked.value
       const message = isBookmarked.value
         ? 'Produk ditambahkan ke wishlist'
@@ -232,6 +253,21 @@ export default {
     }
 
     const openChat = () => {
+      if (!isAuthenticated.value) {
+        Swal.fire({
+          title: 'Perhatian',
+          text: 'Silakan login untuk menghubungi penjual',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Login',
+        }).then(() => {
+          router.push('/login')
+        })
+        return
+      }
       Swal.fire({
         title: 'Chat dengan Penjual',
         text: 'Fitur chat sedang dibuka...',
@@ -245,6 +281,21 @@ export default {
     }
 
     const placeOrder = () => {
+      if (!isAuthenticated.value) {
+        Swal.fire({
+          title: 'Perhatian',
+          text: 'Silakan login untuk membuat pesanan',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Login',
+        }).then(() => {
+          router.push('/login')
+        })
+        return
+      }
       if (!selectedSize.value) {
         Swal.fire({
           title: 'Perhatian',
@@ -272,6 +323,21 @@ export default {
     }
 
     const reportProduct = () => {
+      if (!isAuthenticated.value) {
+        Swal.fire({
+          title: 'Perhatian',
+          text: 'Silakan login untuk melaporkan produk',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Login',
+        }).then(() => {
+          router.push('/login')
+        })
+        return
+      }
       Swal.fire({
         title: 'Laporkan Produk',
         html: `
@@ -369,7 +435,9 @@ export default {
       openChat,
       placeOrder,
       reportProduct,
+      isAuthenticated,
     }
   },
 }
 </script>
+```
