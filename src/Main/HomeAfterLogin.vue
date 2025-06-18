@@ -8,7 +8,9 @@
         class="relative my-8"
         style="margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); width: 100vw"
       >
+        <div v-if="loading" class="text-center py-8">Loading banners...</div>
         <Swiper
+          v-else
           :modules="[Pagination, Navigation]"
           :slides-per-view="1"
           :space-between="30"
@@ -22,7 +24,12 @@
           class="swiper centered-slide-carousel swiper-container relative w-full"
         >
           <SwiperSlide v-for="(banner, index) in banners" :key="index">
-            <img :src="banner.image" :alt="banner.alt" class="w-full h-full object-cover" />
+            <img
+              :src="banner.image"
+              :alt="banner.alt"
+              class="w-full h-[500px] object-cover"
+              style="max-width: 1500px; margin: 0 auto"
+            />
           </SwiperSlide>
         </Swiper>
 
@@ -65,12 +72,13 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Pagination, Navigation } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/navigation'
+import axios from 'axios'
 
 import AuthFooter from '@/components/AuthFooter.vue'
 import CategoryItem1 from '@/components/CategoryItem1.vue'
@@ -80,62 +88,102 @@ import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
 export default {
   components: { HeaderAfterLogin, AuthFooter, Swiper, SwiperSlide, CategoryItem1, ProductCard1 },
   setup() {
-    // Data banner slider
-    const banners = ref([
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 1' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 2' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 3' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 4' },
-      { image: 'https://placehold.co/1500x500', alt: 'Banner 5' },
-    ])
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
+    const banners = ref([])
+    const loading = ref(true)
+    const categories = ref([])
+    const products = ref([])
 
-    // Data kategori
-    const categories = ref([
-      { name: 'Merchandise', image: 'https://placehold.co/100x100', link: '/category' },
-      { name: 'Aksesoris', image: 'https://placehold.co/100x100', link: '/category' },
-      { name: 'Pakaian', image: 'https://placehold.co/100x100', link: '/category' },
-      { name: 'Elektronik', image: 'https://placehold.co/100x100', link: '/category' },
-      { name: 'Perabotan', image: 'https://placehold.co/100x100', link: '/category' },
-    ])
+    // Fetch banners
+    const fetchBanners = async () => {
+      try {
+        const response = await axios.get(`${baseUrl}/banners`)
+        if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+          banners.value = response.data.data.slice(0, 5).map((banner, index) => ({
+            image: banner.picture_url.replace(/\\\//g, '/'),
+            alt: banner.name || `Banner ${index + 1}`,
+          }))
+        } else {
+          throw new Error('Invalid API response')
+        }
+      } catch (error) {
+        console.error('Error fetching banners:', error)
+        banners.value = [
+          { image: 'https://placehold.co/1500x500?text=Banner+1', alt: 'Banner 1' },
+          { image: 'https://placehold.co/1500x500?text=Banner+2', alt: 'Banner 2' },
+          { image: 'https://placehold.co/1500x500?text=Banner+3', alt: 'Banner 3' },
+          { image: 'https://placehold.co/1500x500?text=Banner+4', alt: 'Banner 4' },
+          { image: 'https://placehold.co/1500x500?text=Banner+5', alt: 'Banner 5' },
+        ]
+      } finally {
+        loading.value = false
+      }
+    }
 
-    // Data produk
-    const products = ref([
-      {
-        name: 'Ganci',
-        price: '20000',
-        image: 'https://placehold.co/400x400',
-        link: '/product-details',
-      },
-      {
-        name: 'Kaos',
-        price: '75000',
-        image: 'https://placehold.co/400x400',
-        link: '/product-details',
-      },
-      {
-        name: 'Topi',
-        price: '50000',
-        image: 'https://placehold.co/400x400',
-        link: '/product-details',
-      },
-      {
-        name: 'Tas',
-        price: '400000',
-        image: 'https://placehold.co/400x400',
-        link: '/product-details',
-      },
-      {
-        name: 'Mug',
-        price: '30000',
-        image: 'https://placehold.co/400x400',
-        link: '/product-details',
-      },
-    ])
+    // Fetch categories
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(`${baseUrl}/categories`)
+        if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+          categories.value = response.data.data.map((category) => ({
+            name: category.name,
+            image: category.icon_url.replace(/\\\//g, '/'),
+            link: `/category/${category.id}`,
+          }))
+        } else {
+          throw new Error('Invalid API response')
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        categories.value = [
+          {
+            name: 'Fallback Category',
+            image: 'https://placehold.co/100x100?text=Category',
+            link: '/category',
+          },
+        ]
+      }
+    }
+
+    // Fetch products
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get(`${baseUrl}/products`)
+        if (response.data.status === 'success' && Array.isArray(response.data.data.products)) {
+          products.value = response.data.data.products.map((product) => ({
+            name: product.name,
+            price: product.price.toString(),
+            image: product.thumbnail_url.replace(/\\\//g, '/'),
+            link: `/product-details/${product.id}`,
+          }))
+        } else {
+          throw new Error('Invalid API response')
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error)
+        products.value = [
+          {
+            name: 'Fallback Product',
+            price: '0',
+            image: 'https://placehold.co/400x400?text=Product',
+            link: '/product-details/1',
+          },
+        ]
+      }
+    }
+
+    // Fetch all data on component mount
+    onMounted(() => {
+      fetchBanners()
+      fetchCategories()
+      fetchProducts()
+    })
 
     return {
       banners,
       categories,
       products,
+      loading,
       Pagination,
       Navigation,
     }
