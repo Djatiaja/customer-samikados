@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="bg-gray-100">
     <HeaderAfterLogin />
@@ -90,6 +89,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
 import AuthFooter from '@/components/AuthFooter.vue'
 import ProfilePicture from '@/components/profile/ProfilePicture.vue'
@@ -127,7 +127,7 @@ export default {
       addresses: [],
     })
 
-    const base_url = 'http://127.0.0.1:8000/api'
+    const base_url = import.meta.env.VITE_API_BASE_URL
 
     const showAddAddressModal = ref(false)
     const showEditAddressModal = ref(false)
@@ -144,10 +144,13 @@ export default {
           throw new Error('Token autentikasi ga ada')
         }
 
-        // Ambil data profil
+        console.log('Base URL:', base_url)
+
         const profileResponse = await axios.get(`${base_url}/customer/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+
+        console.log('Profile response:', profileResponse.data)
 
         if (profileResponse.data.status === 'success') {
           Object.assign(user, {
@@ -157,17 +160,15 @@ export default {
             no_telp: profileResponse.data.data.no_telp,
             photo_url: profileResponse.data.data.photo_url,
           })
-          if (user.photo_url && !user.photo_url.includes('/storage')) {
-            user.photo_url = `/storage${user.photo_url}`
-          }
         } else {
           throw new Error(profileResponse.data.message || 'Gagal ambil data profil')
         }
 
-        // Ambil data alamat
         const addressResponse = await axios.get(`${base_url}/customer/address`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+
+        console.log('Address response:', addressResponse.data)
 
         if (addressResponse.data.status === 'success') {
           user.addresses = Array.isArray(addressResponse.data.data)
@@ -178,6 +179,11 @@ export default {
         }
       } catch (error) {
         console.error('Error ambil data:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Gagal memuat profil',
+        })
       }
     }
 
@@ -254,13 +260,23 @@ export default {
         )
 
         if (response.data.status === 'success') {
-          Object.assign(user, updatedProfile)
+          Object.assign(user, response.data.data)
           showEditProfileModal.value = false
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: response.data.message || 'Profil berhasil diperbarui',
+          })
         } else {
           throw new Error(response.data.message || 'Gagal update profil')
         }
       } catch (error) {
-        alert('Gagal menyimpan: ' + (error.response?.data?.msg || error.message))
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || error.message || 'Gagal menyimpan profil',
+        })
+        console.error('Update profile error:', error)
       }
     }
 
@@ -283,16 +299,22 @@ export default {
 
         if (response.data.status === 'success') {
           user.photo_url = response.data.data.photo_url
-          if (user.photo_url && !user.photo_url.includes('/storage')) {
-            user.photo_url = `/storage${user.photo_url}`
-          }
           showChangePhotoModal.value = false
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: response.data.message || 'Foto profil berhasil diperbarui',
+          })
         } else {
           throw new Error(response.data.message || 'Gagal update foto profil')
         }
       } catch (error) {
-        alert('Gagal upload foto: ' + (error.response?.data?.msg || error.message))
-        console.log('Debug photo error:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || error.message || 'Gagal upload foto',
+        })
+        console.error('Update photo error:', error)
       }
     }
 
@@ -416,4 +438,3 @@ export default {
   cursor: pointer;
 }
 </style>
-```

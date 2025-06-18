@@ -139,7 +139,7 @@ export default {
     const rememberMe = ref(false)
     const loading = ref(false)
     const showPassword = ref(false)
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
     console.log('Base URL:', baseUrl)
     if (!import.meta.env.VITE_API_BASE_URL) {
       console.warn('VITE_API_BASE_URL is not defined in .env file. Using fallback URL.')

@@ -1,3 +1,4 @@
+```vue
 <template>
   <div></div>
 </template>
@@ -31,7 +32,7 @@ export default {
                 <input
                   id="newProfilePhoto"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png"
                   class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
                 />
               </div>
@@ -101,6 +102,20 @@ export default {
             fileInput.addEventListener('change', (event) => {
               const file = event.target.files[0]
               if (file) {
+                // Validasi tipe file
+                if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                  Swal.showValidationMessage('File harus berupa JPG atau PNG')
+                  fileInput.value = ''
+                  previewContainer.style.display = 'none'
+                  return
+                }
+                // Validasi ukuran file (max 2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                  Swal.showValidationMessage('Ukuran file maksimal 2MB')
+                  fileInput.value = ''
+                  previewContainer.style.display = 'none'
+                  return
+                }
                 const reader = new FileReader()
                 reader.onload = (e) => {
                   previewUrl.value = e.target.result
@@ -131,10 +146,10 @@ export default {
             emit('close')
           })
           .catch((error) => {
-            // Silent catch
+            console.error('Error showing modal:', error)
           })
       } catch (error) {
-        // Silent catch
+        console.error('Error in modal:', error)
       }
     }
 
@@ -152,3 +167,4 @@ export default {
   },
 }
 </script>
+```

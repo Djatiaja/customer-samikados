@@ -76,7 +76,7 @@ export default {
       messageType: '',
       email: '',
       showRetryButton: false,
-      baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
+      baseUrl: import.meta.env.VITE_API_BASE_URL,
     }
   },
   mounted() {
