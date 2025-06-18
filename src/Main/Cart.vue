@@ -30,6 +30,8 @@
         v-for="(seller, sellerIndex) in cartData"
         :key="seller.id"
         :seller="seller"
+        :variants="variants"
+        :finishings="finishings"
         @toggle-seller-selection="updateSellerSelection(sellerIndex)"
         @toggle-item-selection="(itemIndex) => updateItemSelection(sellerIndex, itemIndex)"
         @increase-quantity="(itemIndex) => increaseQuantity(sellerIndex, itemIndex)"
@@ -94,7 +96,7 @@ export default {
         itemIndex: null,
         productId: null,
       },
-      baseUrl: 'http://127.0.0.1:8000/api',
+      baseUrl: import.meta.env.VITE_API_BASE_URL,
       token: localStorage.getItem('token'),
     }
   },
@@ -113,11 +115,17 @@ export default {
           headers: { Authorization: `Bearer ${this.token}` },
         })
         if (response.data.status === 'success') {
-          // Filter out invalid items
           const validCartItems = response.data.data.filter(
             (item) => item.product && item.product.id && item.product.is_publish,
           )
           this.cartData = this.groupBySeller(validCartItems)
+
+          // Pre-fetch variants and finishings for all products
+          const productIds = [...new Set(validCartItems.map((item) => item.product.id))]
+          await Promise.all([
+            ...productIds.map((productId) => this.fetchVariants(productId)),
+            ...productIds.map((productId) => this.fetchFinishings(productId)),
+          ])
         } else {
           throw new Error(response.data.message)
         }
@@ -251,16 +259,16 @@ export default {
       const finishingOptions = (this.finishings[item.productId] || [])
         .map(
           (finish) =>
-            `<option value="${finish.finishing_id}" ${
-              item.specs.finishingId === finish.finishing_id ? 'selected' : ''
+            `<option value="${finish.id}" ${
+              item.specs.finishingId === finish.id ? 'selected' : ''
             }>${finish.name} (+${this.formatPrice(finish.price)})</option>`,
         )
         .join('')
 
-      if (!variantOptions || !finishingOptions) {
+      if (!variantOptions && !finishingOptions) {
         Swal.fire({
           title: 'Error',
-          text: 'Gagal memuat opsi varian atau finishing untuk produk ini',
+          text: 'Tidak ada opsi varian atau finishing tersedia untuk produk ini',
           icon: 'error',
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
@@ -377,7 +385,7 @@ export default {
             Swal.showValidationMessage('Opsi varian tidak valid untuk produk ini')
             return false
           }
-          if (finishingId && !finishings.some((f) => f.finishing_id === parseInt(finishingId))) {
+          if (finishingId && !finishings.some((f) => f.id === parseInt(finishingId))) {
             Swal.showValidationMessage('Opsi finishing tidak valid untuk produk ini')
             return false
           }
@@ -411,9 +419,17 @@ export default {
       const variants = this.variants[productId] || []
       const finishings = this.finishings[productId] || []
       const variant = variants.find((v) => v.id === formData.variantId)
-      const finishing = finishings.find((f) => f.finishing_id === formData.finishingId)
+      const finishing = finishings.find((f) => f.id === formData.finishingId)
       item.price = variant ? variant.price : item.basePrice
       item.finishingPrice = finishing ? finishing.price : 0
+
+      console.log('Sending update request:', {
+        cart_id: item.id,
+        quantity: formData.quantity,
+        product_variant_id: formData.variantId,
+        product_finishing_id: formData.finishingId,
+        additional_info: formData.note,
+      })
 
       try {
         const response = await axios.post(
@@ -426,6 +442,7 @@ export default {
           },
           { headers: { Authorization: `Bearer ${this.token}` } },
         )
+        console.log('Update response:', response.data)
         if (response.data.status === 'success') {
           Swal.fire({
             title: 'Produk Diperbarui',
@@ -442,23 +459,42 @@ export default {
           throw new Error(response.data.message)
         }
       } catch (error) {
+        console.error('Update error:', error.response?.data)
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
         } else {
           const errorMessage = error.response?.data?.message || 'Gagal memperbarui produk'
-          Swal.fire({
-            title: 'Error',
-            text: errorMessage.includes('not found')
-              ? 'Item di keranjang tidak valid, keranjang telah diperbarui'
-              : errorMessage,
-            icon: 'error',
-            customClass: {
-              confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
-              title: 'text-lg md:text-xl',
-              popup: 'rounded-lg',
-            },
-          })
+          if (
+            errorMessage.includes('not found') ||
+            errorMessage.includes('invalid') ||
+            error.response?.data?.errors?.product_finishing_id
+          ) {
+            // Refresh finishings cache if invalid
+            delete this.finishings[productId]
+            await this.fetchFinishings(productId)
+            Swal.fire({
+              title: 'Error',
+              text: 'Opsi finishing tidak valid, cache telah diperbarui. Silakan coba lagi.',
+              icon: 'error',
+              customClass: {
+                confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
+                title: 'text-lg md:text-xl',
+                popup: 'rounded-lg',
+              },
+            })
+          } else {
+            Swal.fire({
+              title: 'Error',
+              text: errorMessage,
+              icon: 'error',
+              customClass: {
+                confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
+                title: 'text-lg md:text-xl',
+                popup: 'rounded-lg',
+              },
+            })
+          }
           if (errorMessage.includes('not found')) {
             await this.fetchCart()
           }
@@ -471,6 +507,13 @@ export default {
         return
       }
       const item = this.cartData[sellerIndex].items[itemIndex]
+      console.log('Updating cart item:', {
+        cart_id: item.id,
+        quantity: item.quantity,
+        product_variant_id: item.specs.variantId,
+        product_finishing_id: item.specs.finishingId,
+        additional_info: item.specs.note,
+      })
       try {
         const response = await axios.post(
           `${this.baseUrl}/customer/cart/${item.id}`,
@@ -485,7 +528,7 @@ export default {
         if (response.data.status === 'success') {
           const variant = this.variants[item.productId]?.find((v) => v.id === item.specs.variantId)
           const finishing = this.finishings[item.productId]?.find(
-            (f) => f.finishing_id === item.specs.finishingId,
+            (f) => f.id === item.specs.finishingId,
           )
           item.price = variant ? variant.price : item.basePrice
           item.finishingPrice = finishing ? finishing.price : 0
@@ -504,23 +547,42 @@ export default {
           throw new Error(response.data.message)
         }
       } catch (error) {
+        console.error('Update cart error:', error.response?.data)
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
         } else {
           const errorMessage = error.response?.data?.message || 'Gagal memperbarui item'
-          Swal.fire({
-            title: 'Error',
-            text: errorMessage.includes('not found')
-              ? 'Item di keranjang tidak valid, keranjang telah diperbarui'
-              : errorMessage,
-            icon: 'error',
-            customClass: {
-              confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
-              title: 'text-lg md:text-xl',
-              popup: 'rounded-lg',
-            },
-          })
+          if (
+            errorMessage.includes('not found') ||
+            errorMessage.includes('invalid') ||
+            error.response?.data?.errors?.product_finishing_id
+          ) {
+            // Refresh finishings cache if invalid
+            delete this.finishings[item.productId]
+            await this.fetchFinishings(item.productId)
+            Swal.fire({
+              title: 'Error',
+              text: 'Opsi finishing tidak valid, cache telah diperbarui. Silakan coba lagi.',
+              icon: 'error',
+              customClass: {
+                confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
+                title: 'text-lg md:text-xl',
+                popup: 'rounded-lg',
+              },
+            })
+          } else {
+            Swal.fire({
+              title: 'Error',
+              text: errorMessage,
+              icon: 'error',
+              customClass: {
+                confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
+                title: 'text-lg md:text-xl',
+                popup: 'rounded-lg',
+              },
+            })
+          }
           if (errorMessage.includes('not found')) {
             await this.fetchCart()
           }
@@ -604,7 +666,7 @@ export default {
       const variants = this.variants[productId] || []
       const finishings = this.finishings[productId] || []
       const variant = variants.find((v) => v.id === parseInt(variantId))
-      const finishing = finishings.find((f) => f.finishing_id === parseInt(finishingId))
+      const finishing = finishings.find((f) => f.id === parseInt(finishingId))
       const basePrice = variant
         ? variant.price
         : this.cartData

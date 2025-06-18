@@ -17,6 +17,8 @@
       v-for="(item, itemIndex) in seller.items"
       :key="item.id"
       :item="item"
+      :variants="variants"
+      :finishings="finishings"
       @toggle-selection="$emit('toggle-item-selection', itemIndex)"
       @increase-quantity="$emit('increase-quantity', itemIndex)"
       @decrease-quantity="$emit('decrease-quantity', itemIndex)"
@@ -38,6 +40,14 @@ export default {
     seller: {
       type: Object,
       required: true,
+    },
+    variants: {
+      type: Object,
+      default: () => ({}),
+    },
+    finishings: {
+      type: Object,
+      default: () => ({}),
     },
   },
 }

@@ -88,7 +88,7 @@ import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
 export default {
   components: { HeaderAfterLogin, AuthFooter, Swiper, SwiperSlide, CategoryItem1, ProductCard1 },
   setup() {
-    const baseUrl = 'http://127.0.0.1:8000/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
     const banners = ref([])
     const loading = ref(true)
     const categories = ref([])
@@ -97,7 +97,7 @@ export default {
     // Fetch banners
     const fetchBanners = async () => {
       try {
-        const response = await axios.get(`${baseUrl}/banners`) // Changed from /bannersb to /banners
+        const response = await axios.get(`${baseUrl}/banners`)
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           banners.value = response.data.data.slice(0, 5).map((banner, index) => ({
             image: banner.picture_url.replace(/\\\//g, '/'),

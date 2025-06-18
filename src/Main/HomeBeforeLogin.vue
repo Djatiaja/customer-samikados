@@ -93,7 +93,7 @@ export default {
     const loading = ref(true)
     const categories = ref([])
     const products = ref([])
-    const baseUrl = 'http://127.0.0.1:8000/api'
+    const baseUrl = import.meta.env.VUE_APP_API_BASE_URL
 
     const fetchBanners = async () => {
       try {
