@@ -23,430 +23,409 @@ export default {
     },
   },
   setup(props, { emit }) {
-    const base_url = import.meta.env.VITE_API_BASE_URL // Gunakan variabel .env
+    const base_url = import.meta.env.VITE_API_BASE_URL
     const form = ref({
       id: props.user.addresses[props.index]?.id || null,
-      name: props.user.addresses[props.index]?.name || '',
+      label: props.user.addresses[props.index]?.label || '',
       address: props.user.addresses[props.index]?.address || '',
-      postal_code: props.user.addresses[props.index]?.postal_code || '',
       phone: props.user.addresses[props.index]?.phone || '',
       is_default: props.user.addresses[props.index]?.is_default || false,
-      province_id: props.user.addresses[props.index]?.subdistrict?.city?.province_id || null,
-      city_id: props.user.addresses[props.index]?.subdistrict?.city_id || null,
-      subdistrict_id: props.user.addresses[props.index]?.subdistrict_id || null,
     })
+    const locationSearch = ref(props.user.addresses[props.index]?.label || '')
+    const locations = ref([])
+    const selectedLocation = ref(null)
+    const showLocationDropdown = ref(false)
+    const isLoadingLocation = ref(false)
+    const locationError = ref('')
 
-    const provinces = ref([])
-    const cities = ref([])
-    const subdistricts = ref([])
+    const searchLocation = async () => {
+      if (!locationSearch.value.trim()) {
+        locationError.value = 'Masukkan kata kunci pencarian'
+        return
+      }
 
-    const fetchProvinces = async () => {
+      isLoadingLocation.value = true
+      locationError.value = ''
+
       try {
-        const token = localStorage.getItem('token')
-        const response = await axios.get(`${base_url}/customer/address/provinces`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        console.log('Provinces response:', response.data) // Debug response
-        if (response.data.status === 'success') {
-          provinces.value = response.data.data
+        const response = await axios.get(
+          `${base_url}/rajaongkir/search/${locationSearch.value.trim()}`,
+        )
+
+        if (response.data.status === 'success' && response.data.data.data) {
+          locations.value = response.data.data.data
+          showLocationDropdown.value = true
+        } else {
+          locations.value = []
+          locationError.value = 'Tidak ada hasil pencarian'
         }
       } catch (error) {
-        console.error('Error fetching provinces:', error)
+        locationError.value = 'Gagal mencari alamat. Silakan coba lagi.'
+        locations.value = []
+        console.error('Location search error:', error)
+      } finally {
+        isLoadingLocation.value = false
       }
     }
 
-    const fetchCities = async (province_id) => {
-      cities.value = []
-      subdistricts.value = []
-      if (!province_id) return
-      try {
-        const token = localStorage.getItem('token')
-        const response = await axios.get(`${base_url}/customer/address/cities/${province_id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        console.log('Cities response:', response.data) // Debug response
-        if (response.data.status === 'success') {
-          cities.value = response.data.data
-        }
-      } catch (error) {
-        console.error('Error fetching cities:', error)
-      }
+    const selectLocation = (location) => {
+      selectedLocation.value = location
+      form.value.label = location.label
+      showLocationDropdown.value = false
+      locationError.value = ''
     }
 
-    const fetchSubdistricts = async (city_id) => {
-      subdistricts.value = []
-      if (!city_id) return
-      try {
-        const token = localStorage.getItem('token')
-        const response = await axios.get(`${base_url}/customer/address/subdistricts/${city_id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        console.log('Subdistricts response:', response.data) // Debug response
-        if (response.data.status === 'success') {
-          subdistricts.value = response.data.data
-        }
-      } catch (error) {
-        console.error('Error fetching subdistricts:', error)
-      }
+    const formatLocationDisplay = (location) => {
+      return `${location.subdistrict_name}, ${location.district_name}, ${location.city_name}, ${location.zip_code}`
     }
 
-    const updateDropdowns = () => {
-      const provinceSelect = document.getElementById('province_id')
-      const citySelect = document.getElementById('city_id')
-      const subdistrictSelect = document.getElementById('subdistrict_id')
-
-      if (provinceSelect) {
-        provinceSelect.innerHTML = `
-          <option value="">Pilih Provinsi</option>
-          ${provinces.value
-            .map(
-              (province) =>
-                `<option value="${province.id}" ${
-                  province.id === form.value.province_id ? 'selected' : ''
-                }>${province.name}</option>`,
-            )
-            .join('')}
-        `
-      }
-
-      if (citySelect) {
-        citySelect.innerHTML = `
-          <option value="">Pilih Kota/Kabupaten</option>
-          ${cities.value
-            .map(
-              (city) =>
-                `<option value="${city.id}" ${
-                  city.id === form.value.city_id ? 'selected' : ''
-                }>${city.name}</option>`,
-            )
-            .join('')}
-        `
-      }
-
-      if (subdistrictSelect) {
-        subdistrictSelect.innerHTML = `
-          <option value="">Pilih Kecamatan</option>
-          ${subdistricts.value
-            .map(
-              (subdistrict) =>
-                `<option value="${subdistrict.id}" ${
-                  subdistrict.id === form.value.subdistrict_id ? 'selected' : ''
-                }>${subdistrict.name}</option>`,
-            )
-            .join('')}
-        `
-      }
-    }
-
-    const showEditAddressModal = async () => {
-      try {
-        console.log('Base URL:', base_url) // Debug URL
-        await fetchProvinces()
-        if (form.value.province_id) await fetchCities(form.value.province_id)
-        if (form.value.city_id) await fetchSubdistricts(form.value.city_id)
-
-        Swal.fire({
-          title: `<h3 class="text-lg font-bold">Edit Alamat</h3>`,
-          html: `
-            <form id="editAddressForm" class="text-left form-compact">
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">Nama Penerima</label>
+    const showEditAddressModal = () => {
+      Swal.fire({
+        title: `<h3 class="text-lg font-bold">Edit Alamat</h3>`,
+        html: `
+          <form id="editAddressForm" class="text-left form-compact">
+            <div class="mb-4 relative">
+              <label class="block text-gray-700 font-medium text-sm mb-1">Pilih Alamat</label>
+              <div class="flex">
                 <input
-                  id="name"
+                  id="locationSearchInput"
+                  class="flex-1 p-3 border border-gray-300 rounded-l-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+                  placeholder="Cari alamat (contoh: sleman)"
                   type="text"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-                  value="${form.value.name}"
+                  value="${locationSearch.value}"
                 />
-              </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">Provinsi</label>
-                <select
-                  id="province_id"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                <button
+                  type="button"
+                  id="searchButton"
+                  class="bg-red-600 text-white px-4 py-3 rounded-r-lg hover:bg-red-700 disabled:opacity-50"
                 >
-                  <option value="">Pilih Provinsi</option>
-                  ${provinces.value
-                    .map(
-                      (province) =>
-                        `<option value="${province.id}" ${
-                          province.id === form.value.province_id ? 'selected' : ''
-                        }>${province.name}</option>`,
-                    )
-                    .join('')}
-                </select>
+                  <i id="searchIcon" class="fas fa-search"></i>
+                </button>
               </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">Kota/Kabupaten</label>
-                <select
-                  id="city_id"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-                >
-                  <option value="">Pilih Kota/Kabupaten</option>
-                  ${cities.value
-                    .map(
-                      (city) =>
-                        `<option value="${city.id}" ${
-                          city.id === form.value.city_id ? 'selected' : ''
-                        }>${city.name}</option>`,
-                    )
-                    .join('')}
-                </select>
+
+              <div
+                id="selectedLocationDiv"
+                class="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg"
+                style="display: ${selectedLocation.value ? 'block' : 'none'}"
+              >
+                <div class="flex items-center text-green-700">
+                  <i class="fas fa-check-circle mr-2"></i>
+                  <span class="font-medium">Alamat dipilih:</span>
+                </div>
+                <div class="text-green-600 mt-1" id="selectedLocationText">
+                  ${selectedLocation.value ? formatLocationDisplay(selectedLocation.value) : ''}
+                </div>
               </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">Kecamatan</label>
-                <select
-                  id="subdistrict_id"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-                >
-                  <option value="">Pilih Kecamatan</option>
-                  ${subdistricts.value
-                    .map(
-                      (subdistrict) =>
-                        `<option value="${subdistrict.id}" ${
-                          subdistrict.id === form.value.subdistrict_id ? 'selected' : ''
-                        }>${subdistrict.name}</option>`,
-                    )
-                    .join('')}
-                </select>
+
+              <small id="locationError" class="text-red-500" style="display: none;"></small>
+
+              <div
+                id="locationDropdown"
+                class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-64 overflow-y-auto"
+                style="display: none;"
+              >
+                <div id="locationResults"></div>
+                <div class="p-3 text-center border-t">
+                  <button
+                    type="button"
+                    id="closeDropdownBtn"
+                    class="text-gray-500 hover:text-gray-700"
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">Kode Pos</label>
-                <input
-                  id="postal_code"
-                  type="text"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-                  value="${form.value.postal_code}"
-                />
-              </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">Detail Alamat</label>
-                <textarea
-                  id="address"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-                >${form.value.address}</textarea>
-              </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-1">No. Penerima</label>
-                <input
-                  id="phone"
-                  type="tel"
-                  class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
-                  value="${form.value.phone}"
-                />
-              </div>
-              <div class="mb-4">
-                <label class="flex items-center">
-                  <input
-                    id="is_default"
-                    type="checkbox"
-                    class="mr-2"
-                    ${form.value.is_default ? 'checked' : ''}
-                  />
-                  Jadikan Alamat Utama
-                </label>
-              </div>
-            </form>
-          `,
-          showCancelButton: true,
-          cancelButtonText: 'Batal',
-          confirmButtonText: 'Simpan',
-          focusConfirm: false,
-          width: '600px',
-          maxWidth: '700px',
-          buttonsStyling: false,
-          customClass: {
-            container: 'swal-container',
-            popup: 'swal-modal-popup rounded-lg',
-            htmlContainer: 'pb-2 px-1',
-            confirmButton:
-              'bg-red-600 text-white px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
-            cancelButton:
-              'bg-gray-300 text-gray-700 px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
-            actions: 'flex justify-center space-x-6',
-          },
-          didOpen: () => {
-            const modalContent = document.querySelector('.swal2-content')
-            if (modalContent) {
-              modalContent.style.maxHeight = '70vh'
-              modalContent.style.overflowY = 'auto'
-              modalContent.style.overflowX = 'hidden'
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-gray-700 font-medium text-sm mb-1">Detail Alamat (Patokan)</label>
+              <textarea id="address" class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all">${form.value.address || ''}</textarea>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-gray-700 font-medium text-sm mb-1">No. Penerima</label>
+              <input id="phone" type="tel" class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all" value="${form.value.phone || ''}" />
+            </div>
+
+            <div class="mb-4">
+              <label class="flex items-center">
+                <input id="is_default" type="checkbox" class="mr-2" ${form.value.is_default ? 'checked' : ''} />
+                Jadikan Alamat Utama
+              </label>
+            </div>
+          </form>
+        `,
+        showCancelButton: true,
+        cancelButtonText: 'Batal',
+        confirmButtonText: 'Simpan',
+        focusConfirm: false,
+        width: '600px',
+        maxWidth: '700px',
+        buttonsStyling: false,
+        customClass: {
+          container: 'swal-container',
+          popup: 'swal-modal-popup rounded-lg',
+          htmlContainer: 'pb-2 px-1',
+          confirmButton:
+            'bg-red-600 text-white px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
+          cancelButton:
+            'bg-gray-300 text-gray-700 px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
+          actions: 'flex justify-center space-x-6',
+        },
+        didOpen: () => {
+          const modalContent = document.querySelector('.swal2-content')
+          if (modalContent) {
+            modalContent.style.maxHeight = '70vh'
+            modalContent.style.overflowY = 'auto'
+            modalContent.style.overflowX = 'hidden'
+          }
+
+          const styleElement = document.createElement('style')
+          styleElement.textContent = `
+            .swal2-content::-webkit-scrollbar { width: 6px; }
+            .swal2-content::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+            .swal2-content::-webkit-scrollbar-thumb { background: #dc2626; border-radius: 10px; }
+            .swal2-content::-webkit-scrollbar-thumb:hover { background: #b91c1c; }
+            .form-compact input, .form-compact textarea { font-size: 0.875rem; padding: 0.5rem; }
+            .form-compact label { font-size: 0.75rem; margin-bottom: 0.25rem; }
+          `
+          document.head.appendChild(styleElement)
+
+          // Event listeners
+          const locationSearchInput = document.getElementById('locationSearchInput')
+          const searchButton = document.getElementById('searchButton')
+          const searchIcon = document.getElementById('searchIcon')
+          const locationDropdown = document.getElementById('locationDropdown')
+          const locationResults = document.getElementById('locationResults')
+          const locationError = document.getElementById('locationError')
+          const selectedLocationDiv = document.getElementById('selectedLocationDiv')
+          const selectedLocationText = document.getElementById('selectedLocationText')
+          const closeDropdownBtn = document.getElementById('closeDropdownBtn')
+
+          // Update location search value
+          locationSearchInput.addEventListener('input', (e) => {
+            locationSearch.value = e.target.value
+          })
+
+          // Search button click handler
+          searchButton.addEventListener('click', async () => {
+            const searchValue = locationSearchInput.value.trim()
+
+            if (!searchValue) {
+              locationError.textContent = 'Masukkan kata kunci pencarian'
+              locationError.style.display = 'block'
+              return
             }
 
-            const styleElement = document.createElement('style')
-            styleElement.textContent = `
-              .swal2-content::-webkit-scrollbar {
-                width: 6px;
+            // Show loading
+            searchIcon.className = 'fas fa-spinner fa-spin'
+            searchButton.disabled = true
+            locationError.style.display = 'none'
+
+            try {
+              const response = await axios.get(`${base_url}/rajaongkir/search/${searchValue}`)
+
+              if (response.data.status === 'success' && response.data.data.data) {
+                const locations = response.data.data.data
+
+                if (locations.length === 0) {
+                  locationError.textContent = 'Tidak ada hasil pencarian'
+                  locationError.style.display = 'block'
+                  locationDropdown.style.display = 'none'
+                } else {
+                  // Populate dropdown
+                  locationResults.innerHTML = `
+                    <div class="p-4">
+                      <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN</div>
+                      ${locations
+                        .map(
+                          (location) => `
+                        <div
+                          class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100 location-item"
+                          data-location='${JSON.stringify(location)}'
+                        >
+                          <i class="fas fa-map-marker-alt mr-2"></i>
+                          <span>${location.subdistrict_name}, ${location.district_name}, ${location.city_name}, ${location.zip_code}</span>
+                        </div>
+                      `,
+                        )
+                        .join('')}
+                    </div>
+                  `
+
+                  // Add click handlers for location items
+                  document.querySelectorAll('.location-item').forEach((item) => {
+                    item.addEventListener('click', () => {
+                      const location = JSON.parse(item.dataset.location)
+                      selectedLocation.value = location
+                      form.value.label = location.label
+
+                      selectedLocationText.textContent = `${location.subdistrict_name}, ${location.district_name}, ${location.city_name}, ${location.zip_code}`
+                      selectedLocationDiv.style.display = 'block'
+                      locationDropdown.style.display = 'none'
+                      locationError.style.display = 'none'
+                    })
+                  })
+
+                  locationDropdown.style.display = 'block'
+                }
+              } else {
+                locationError.textContent = 'Tidak ada hasil pencarian'
+                locationError.style.display = 'block'
+                locationDropdown.style.display = 'none'
               }
-              .swal2-content::-webkit-scrollbar-track {
-                background: #f1f1f1;
-                border-radius: 10px;
-              }
-              .swal2-content::-webkit-scrollbar-thumb {
-                background: #dc2626;
-                border-radius: 10px;
-              }
-              .swal2-content::-webkit-scrollbar-thumb:hover {
-                background: #b91c1c;
-              }
-              .form-compact input,
-              .form-compact select,
-              .form-compact textarea {
-                font-size: 0.875rem;
-                padding: 0.5rem;
-              }
-              .form-compact label {
-                font-size: 0.75rem;
-                margin-bottom: 0.25rem;
-              }
-            `
-            document.head.appendChild(styleElement)
-
-            document.getElementById('name').addEventListener('input', (e) => {
-              form.value.name = e.target.value
-            })
-
-            document.getElementById('address').addEventListener('input', (e) => {
-              form.value.address = e.target.value
-            })
-
-            document.getElementById('postal_code').addEventListener('input', (e) => {
-              form.value.postal_code = e.target.value
-            })
-
-            document.getElementById('phone').addEventListener('input', (e) => {
-              form.value.phone = e.target.value
-            })
-
-            document.getElementById('province_id').addEventListener('change', (e) => {
-              form.value.province_id = e.target.value ? Number(e.target.value) : null
-              form.value.city_id = null
-              form.value.subdistrict_id = null
-              fetchCities(form.value.province_id)
-            })
-
-            document.getElementById('city_id').addEventListener('change', (e) => {
-              form.value.city_id = e.target.value ? Number(e.target.value) : null
-              form.value.subdistrict_id = null
-              fetchSubdistricts(form.value.city_id)
-            })
-
-            document.getElementById('subdistrict_id').addEventListener('change', (e) => {
-              form.value.subdistrict_id = e.target.value ? Number(e.target.value) : null
-            })
-
-            document.getElementById('is_default').addEventListener('change', (e) => {
-              form.value.is_default = e.target.checked
-            })
-          },
-          preConfirm: () => {
-            const name = document.getElementById('name').value
-            const address = document.getElementById('address').value
-            const postal_code = document.getElementById('postal_code').value
-            const phone = document.getElementById('phone').value
-            const province_id = document.getElementById('province_id').value
-            const city_id = document.getElementById('city_id').value
-            const subdistrict_id = document.getElementById('subdistrict_id').value
-            const is_default = document.getElementById('is_default').checked
-
-            if (
-              !name ||
-              !address ||
-              !postal_code ||
-              !phone ||
-              !province_id ||
-              !city_id ||
-              !subdistrict_id
-            ) {
-              Swal.showValidationMessage('Semua field wajib diisi')
-              return false
+            } catch (error) {
+              locationError.textContent = 'Gagal mencari alamat. Silakan coba lagi.'
+              locationError.style.display = 'block'
+              locationDropdown.style.display = 'none'
+              console.error('Location search error:', error)
+            } finally {
+              // Reset loading
+              searchIcon.className = 'fas fa-search'
+              searchButton.disabled = false
             }
+          })
 
-            if (!/^\d{5}$/.test(postal_code)) {
-              Swal.showValidationMessage('Kode pos harus 5 digit angka')
-              return false
-            }
+          // Close dropdown handler
+          closeDropdownBtn.addEventListener('click', () => {
+            locationDropdown.style.display = 'none'
+          })
 
-            if (!/^\+?\d{10,13}$/.test(phone)) {
-              Swal.showValidationMessage('No. telepon tidak valid')
-              return false
-            }
+          // Form input handlers
+          document.getElementById('address').addEventListener('input', (e) => {
+            form.value.address = e.target.value
+          })
+          document.getElementById('phone').addEventListener('input', (e) => {
+            form.value.phone = e.target.value
+          })
+          document.getElementById('is_default').addEventListener('change', (e) => {
+            form.value.is_default = e.target.checked
+          })
+        },
+        preConfirm: () => {
+          const address = document.getElementById('address').value
+          const phone = document.getElementById('phone').value
+          const is_default = document.getElementById('is_default').checked
 
-            return {
-              ...form.value,
-              name,
-              address,
-              postal_code,
-              phone,
-              province_id: Number(province_id),
-              city_id: Number(city_id),
-              subdistrict_id: Number(subdistrict_id),
-              is_default,
-              subdistrict: {
-                id: Number(subdistrict_id),
-                name: subdistricts.value.find((s) => s.id === Number(subdistrict_id))?.name || '',
-                city: {
-                  id: Number(city_id),
-                  name: cities.value.find((c) => c.id === Number(city_id))?.name || '',
-                  province: {
-                    id: Number(province_id),
-                    name: provinces.value.find((p) => p.id === Number(province_id))?.name || '',
-                  },
+          if (!form.value.label) {
+            Swal.showValidationMessage('Alamat wajib dipilih dari hasil pencarian')
+            return false
+          }
+          if (!address || !phone) {
+            Swal.showValidationMessage('Detail alamat dan no. penerima wajib diisi')
+            return false
+          }
+          if (!/^\+?\d{10,13}$/.test(phone)) {
+            Swal.showValidationMessage('No. telepon tidak valid')
+            return false
+          }
+
+          return {
+            id: form.value.id,
+            label: form.value.label,
+            address,
+            phone,
+            is_default,
+          }
+        },
+      })
+        .then((result) => {
+          if (result.isConfirmed && result.value) {
+            const addressId = props.user.addresses[props.index].id
+
+            // Prepare form data
+            const formData = new FormData()
+            formData.append('label', result.value.label)
+            formData.append('is_default', result.value.is_default ? 1 : 0)
+            formData.append('address', result.value.address)
+            formData.append('phone', result.value.phone)
+
+            // Update address using correct API endpoint
+            axios
+              .post(`${base_url}/customer/address/${addressId}`, formData, {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem('token')}`,
+                  'Content-Type': 'multipart/form-data',
                 },
-              },
-            }
-          },
+              })
+              .then((response) => {
+                if (response.data.status === 'success') {
+                  emit('update-address', props.index, {
+                    id: addressId,
+                    label: result.value.label,
+                    address: result.value.address,
+                    phone: result.value.phone,
+                    is_default: result.value.is_default,
+                  })
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: response.data.message || 'Alamat berhasil diperbarui',
+                    confirmButtonText: 'OK',
+                    buttonsStyling: false,
+                    customClass: {
+                      confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+                    },
+                  })
+                }
+              })
+              .catch((error) => {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: error.response?.data?.message || 'Gagal memperbarui alamat',
+                  confirmButtonText: 'OK',
+                  buttonsStyling: false,
+                  customClass: {
+                    confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+                  },
+                })
+                console.error('Update address error:', error)
+              })
+          }
+          emit('close')
         })
-          .then((result) => {
-            if (result.isConfirmed && result.value) {
-              emit('update-address', props.index, result.value)
-              form.value.name = ''
-              form.value.address = ''
-              form.value.postal_code = ''
-              form.value.phone = ''
-              form.value.is_default = false
-              form.value.province_id = null
-              form.value.city_id = null
-              form.value.subdistrict_id = null
-            }
-            emit('close')
-          })
-          .catch((error) => {
-            // Silent catch
-          })
-      } catch (error) {
-        // Silent catch
-      }
+        .catch((error) => {
+          console.error('Modal error:', error)
+        })
     }
 
     watch(
       () => props.visible,
-      async (newVisible) => {
+      (newVisible) => {
         if (newVisible) {
           form.value = {
             id: props.user.addresses[props.index]?.id || null,
-            name: props.user.addresses[props.index]?.name || '',
+            label: props.user.addresses[props.index]?.label || '',
             address: props.user.addresses[props.index]?.address || '',
-            postal_code: props.user.addresses[props.index]?.postal_code || '',
             phone: props.user.addresses[props.index]?.phone || '',
             is_default: props.user.addresses[props.index]?.is_default || false,
-            province_id: props.user.addresses[props.index]?.subdistrict?.city?.province_id || null,
-            city_id: props.user.addresses[props.index]?.subdistrict?.city_id || null,
-            subdistrict_id: props.user.addresses[props.index]?.subdistrict_id || null,
           }
-          await showEditAddressModal()
+          locationSearch.value = form.value.label
+          selectedLocation.value = null
+          locations.value = []
+          showLocationDropdown.value = false
+          isLoadingLocation.value = false
+          locationError.value = ''
+          showEditAddressModal()
         }
       },
       { immediate: true },
     )
 
-    watch(
-      () => [cities.value, subdistricts.value],
-      () => {
-        updateDropdowns()
-      },
-    )
-
-    return { form, showEditAddressModal, provinces, cities, subdistricts }
+    return {
+      form,
+      showEditAddressModal,
+      locationSearch,
+      locations,
+      selectedLocation,
+      showLocationDropdown,
+      isLoadingLocation,
+      locationError,
+      searchLocation,
+      selectLocation,
+      formatLocationDisplay,
+    }
   },
 }
 </script>
