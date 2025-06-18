@@ -1,3 +1,4 @@
+```vue
 <template>
   <div></div>
 </template>
@@ -5,6 +6,8 @@
 <script>
 import { ref, watch } from 'vue'
 import Swal from 'sweetalert2'
+import axios from 'axios'
+import { debounce } from 'lodash'
 
 export default {
   props: {
@@ -18,12 +21,44 @@ export default {
     },
   },
   setup(props, { emit }) {
+    const base_url = import.meta.env.VITE_API_BASE_URL
     const form = ref({
       name: props.user.name,
       username: props.user.username,
       no_telp: props.user.no_telp,
       email: props.user.email,
     })
+    const usernameAvailable = ref(null)
+    const usernameMessage = ref('')
+
+    const checkUsername = debounce(async (username) => {
+      if (!username || username === props.user.username) {
+        usernameAvailable.value = null
+        usernameMessage.value = ''
+        return
+      }
+      try {
+        const token = localStorage.getItem('token')
+        const response = await axios.post(
+          `${base_url}/customer/profile/checkusername`,
+          { username },
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        if (response.data.status === 'success') {
+          usernameAvailable.value = response.data.data.is_available
+          usernameMessage.value = response.data.data.is_available
+            ? 'Username tersedia'
+            : 'Username sudah dipakai'
+        } else {
+          usernameAvailable.value = false
+          usernameMessage.value = response.data.message || 'Gagal memeriksa username'
+        }
+      } catch (error) {
+        usernameAvailable.value = false
+        usernameMessage.value = 'Error memeriksa username'
+        console.error('Check username error:', error)
+      }
+    }, 500)
 
     const showEditProfileModal = () => {
       try {
@@ -46,6 +81,13 @@ export default {
                   value="${form.value.username || ''}"
                   class="w-full text-sm p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
                 />
+                <p id="usernameMessage" class="text-xs mt-1 ${
+                  usernameAvailable.value === true
+                    ? 'text-green-600'
+                    : usernameAvailable.value === false
+                      ? 'text-red-600'
+                      : 'text-gray-600'
+                }">${usernameMessage.value}</p>
               </div>
               <div class="mb-4">
                 <label class="block text-gray-700 font-medium text-sm mb-1">Nomor Telepon</label>
@@ -127,6 +169,7 @@ export default {
 
             document.getElementById('username').addEventListener('input', (e) => {
               form.value.username = e.target.value
+              checkUsername(e.target.value)
             })
 
             document.getElementById('no_telp').addEventListener('input', (e) => {
@@ -147,8 +190,16 @@ export default {
               Swal.showValidationMessage('Semua field harus diisi')
               return false
             }
-            if (!/^\d+$/.test(no_telp)) {
-              Swal.showValidationMessage('Nomor telepon harus berupa angka')
+            if (!/^[a-zA-Z0-9\s]{3,}$/.test(name)) {
+              Swal.showValidationMessage('Nama minimal 3 karakter, hanya huruf, angka, dan spasi')
+              return false
+            }
+            if (usernameAvailable.value === false) {
+              Swal.showValidationMessage('Username sudah dipakai, pilih yang lain')
+              return false
+            }
+            if (!/^\d{10,13}$/.test(no_telp)) {
+              Swal.showValidationMessage('Nomor telepon harus 10-13 digit angka')
               return false
             }
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -168,10 +219,10 @@ export default {
             }
           })
           .catch((error) => {
-            // Silent catch, biar ga error
+            console.error('Error showing modal:', error)
           })
       } catch (error) {
-        // Silent catch, biar ga error
+        console.error('Error in modal:', error)
       }
     }
 
@@ -179,13 +230,22 @@ export default {
       () => props.visible,
       (newVisible) => {
         if (newVisible) {
+          form.value = {
+            name: props.user.name,
+            username: props.user.username,
+            no_telp: props.user.no_telp,
+            email: props.user.email,
+          }
+          usernameAvailable.value = null
+          usernameMessage.value = ''
           showEditProfileModal()
         }
       },
       { immediate: true },
     )
 
-    return { form, showEditProfileModal }
+    return { form, showEditProfileModal, usernameAvailable, usernameMessage }
   },
 }
 </script>
+```
