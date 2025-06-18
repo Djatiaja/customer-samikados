@@ -37,7 +37,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router' // Import useRoute
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
@@ -57,7 +57,7 @@ export default {
     Reviews,
   },
   setup() {
-    const route = useRoute() // Get route object
+    const route = useRoute()
     const isLoaded = ref(false)
     const product = reactive({
       name: '',
@@ -104,7 +104,9 @@ export default {
 
     const fetchProduct = async (productId) => {
       try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/products/${productId}`)
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/products/${productId}`,
+        )
         const data = response.data.data.product
 
         product.name = data.name || ''
@@ -153,7 +155,7 @@ export default {
     }
 
     onMounted(() => {
-      const productId = route.params.id // Get product ID from route
+      const productId = route.params.id
       if (productId) {
         fetchProduct(productId)
       } else {

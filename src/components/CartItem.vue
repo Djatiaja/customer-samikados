@@ -29,13 +29,13 @@
               <span class="text-gray-600 text-sm md:text-base">Catatan:</span>
               <span class="text-sm md:text-base">{{ item.specs.note }}</span>
             </div>
-            <div class="flex justify-between mb-1 md:mb-2">
-              <span class="text-gray-600 text-sm md:text-base">Ukuran:</span>
-              <span class="text-sm md:text-base">{{ item.specs.size }}</span>
+            <div v-if="variantName" class="flex justify-between mb-1 md:mb-2">
+              <span class="text-gray-600 text-sm md:text-base">Varian:</span>
+              <span class="text-sm md:text-base">{{ variantName }}</span>
             </div>
-            <div class="flex justify-between mb-1 md:mb-2">
+            <div v-if="finishingName" class="flex justify-between mb-1 md:mb-2">
               <span class="text-gray-600 text-sm md:text-base">Finishing:</span>
-              <span class="text-sm md:text-base">{{ item.specs.finishing }}</span>
+              <span class="text-sm md:text-base">{{ finishingName }}</span>
             </div>
           </div>
 
@@ -84,10 +84,34 @@ export default {
       type: Object,
       required: true,
     },
+    variants: {
+      type: Object,
+      default: () => ({}),
+    },
+    finishings: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  computed: {
+    variantName() {
+      if (!this.item.specs.variantId || !this.variants[this.item.productId]) return null
+      const variant = this.variants[this.item.productId].find(
+        (v) => v.id === this.item.specs.variantId,
+      )
+      return variant ? variant.name : null
+    },
+    finishingName() {
+      if (!this.item.specs.finishingId || !this.finishings[this.item.productId]) return null
+      const finishing = this.finishings[this.item.productId].find(
+        (f) => f.id === this.item.specs.finishingId,
+      )
+      return finishing ? finishing.name : null
+    },
   },
   methods: {
     calculateItemPrice(item) {
-      return item.price * item.quantity
+      return (item.price + (item.finishingPrice || 0)) * item.quantity
     },
     formatPrice(price) {
       return `Rp${price.toLocaleString('id-ID')}`
