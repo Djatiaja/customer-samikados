@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="bg-gray-100">
     <HeaderAfterLogin />
@@ -127,7 +126,7 @@ export default {
       addresses: [],
     })
 
-    const base_url = 'http://127.0.0.1:8000/api'
+    const base_url = import.meta.env.VITE_API_BASE_URL // Gunakan variabel .env
 
     const showAddAddressModal = ref(false)
     const showEditAddressModal = ref(false)
@@ -144,10 +143,14 @@ export default {
           throw new Error('Token autentikasi ga ada')
         }
 
+        console.log('Base URL:', base_url) // Debug URL
+
         // Ambil data profil
         const profileResponse = await axios.get(`${base_url}/customer/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+
+        console.log('Profile response:', profileResponse.data) // Debug response
 
         if (profileResponse.data.status === 'success') {
           Object.assign(user, {
@@ -168,6 +171,8 @@ export default {
         const addressResponse = await axios.get(`${base_url}/customer/address`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+
+        console.log('Address response:', addressResponse.data) // Debug response
 
         if (addressResponse.data.status === 'success') {
           user.addresses = Array.isArray(addressResponse.data.data)
@@ -416,4 +421,3 @@ export default {
   cursor: pointer;
 }
 </style>
-```
