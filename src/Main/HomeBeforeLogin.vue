@@ -1,3 +1,4 @@
+```vue
 <template>
   <div class="flex flex-col min-h-screen">
     <HeaderBeforeLogin />
@@ -8,7 +9,10 @@
         class="relative my-8"
         style="margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); width: 100vw"
       >
-        <div v-if="loading" class="text-center py-8">Loading banners...</div>
+        <div v-if="loading" class="text-center py-8">Memuat banner...</div>
+        <div v-else-if="!banners.length" class="text-center py-8 text-gray-600">
+          Tidak ada banner tersedia
+        </div>
         <Swiper
           v-else
           :modules="[Pagination, Navigation]"
@@ -27,8 +31,8 @@
             <img
               :src="banner.image"
               :alt="banner.alt"
-              class="w-full h-[500px] object-cover"
-              style="max-width: 1500px; margin: 0 auto"
+              class="w-full h-[400px] object-cover mx-auto"
+              style="max-width: 1200px"
             />
           </SwiperSlide>
         </Swiper>
@@ -39,32 +43,40 @@
       <!-- Pilih Kategori -->
       <div class="container mx-auto mt-8">
         <h2 class="text-md sm:text-lg md:text-xl font-bold">PILIH KATEGORI ANDA</h2>
-        <div class="text-center mt-4 mb-6 border border-gray-300 shadow-lg p-6 rounded-lg">
+        <div v-if="!categories.length" class="text-center py-8 text-gray-600">
+          Tidak ada kategori tersedia
+        </div>
+        <div v-else class="text-center mt-4 mb-6 border border-gray-300 shadow-lg p-6 rounded-lg">
           <div
             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-60 overflow-y-auto"
           >
             <CategoryItem1
-              v-for="(category, index) in categories"
-              :key="index"
+              v-for="category in categories"
+              :key="category.id"
               :name="category.name"
               :image="category.image"
-              :link="category.link"
+              @click="selectCategory(category.id)"
             />
           </div>
         </div>
       </div>
 
       <!-- Produk -->
-      <div class="container grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto">
-        <ProductCard1
-          v-for="(product, index) in products"
-          :key="index"
-          :id="product.id"
-          :name="product.name"
-          :price="product.price"
-          :link="product.link"
-          :image="product.image"
-        />
+      <div class="container mx-auto">
+        <div v-if="!products.length" class="text-center py-8 text-gray-600">
+          Tidak ada produk tersedia
+        </div>
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <ProductCard1
+            v-for="product in products"
+            :key="product.id"
+            :id="product.id"
+            :name="product.name"
+            :price="product.price.replace('Rp', '')"
+            :link="product.link"
+            :image="product.image"
+          />
+        </div>
       </div>
     </div>
 
@@ -74,12 +86,14 @@
 
 <script>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Pagination, Navigation } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/navigation'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 import AuthFooter from '@/components/AuthFooter.vue'
 import CategoryItem1 from '@/components/CategoryItem1.vue'
@@ -89,33 +103,32 @@ import HeaderBeforeLogin from '@/components/HeaderBeforeLogin.vue'
 export default {
   components: { HeaderBeforeLogin, AuthFooter, Swiper, SwiperSlide, CategoryItem1, ProductCard1 },
   setup() {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
+    const router = useRouter()
     const banners = ref([])
     const loading = ref(true)
     const categories = ref([])
     const products = ref([])
-    const baseUrl = import.meta.env.VITE_API_BASE_URL // Changed to VITE_
 
     const fetchBanners = async () => {
       try {
         const response = await axios.get(`${baseUrl}/banners`)
-        console.log('Banners response:', response.data) // Debug log
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           banners.value = response.data.data.slice(0, 5).map((banner, index) => ({
             image: banner.picture_url.replace(/\\\//g, '/'),
             alt: banner.name || `Banner ${index + 1}`,
           }))
         } else {
-          throw new Error('Invalid API response')
+          throw new Error(response.data.message || 'Gagal memuat banner')
         }
       } catch (error) {
         console.error('Error fetching banners:', error)
-        banners.value = [
-          { image: 'https://placehold.co/1500x500?text=Banner+1', alt: 'Banner 1' },
-          { image: 'https://placehold.co/1500x500?text=Banner+2', alt: 'Banner 2' },
-          { image: 'https://placehold.co/1500x500?text=Banner+3', alt: 'Banner 3' },
-          { image: 'https://placehold.co/1500x500?text=Banner+4', alt: 'Banner 4' },
-          { image: 'https://placehold.co/1500x500?text=Banner+5', alt: 'Banner 5' },
-        ]
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Gagal memuat banner',
+        })
+        banners.value = []
       } finally {
         loading.value = false
       }
@@ -124,62 +137,61 @@ export default {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${baseUrl}/categories`)
-        console.log('Categories response:', response.data) // Debug log
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           categories.value = response.data.data.map((category) => ({
+            id: category.id,
             name: category.name,
             image: category.icon_url.replace(/\\\//g, '/'),
-            link: `/category/${category.id}`,
           }))
         } else {
-          throw new Error('Invalid API response')
+          throw new Error(response.data.message || 'Gagal memuat kategori')
         }
       } catch (error) {
         console.error('Error fetching categories:', error)
-        categories.value = [
-          {
-            name: 'Fallback Category',
-            image: 'https://placehold.co/100x100?text=Category',
-            link: '/category',
-          },
-        ]
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Gagal memuat kategori',
+        })
+        categories.value = []
       }
     }
 
     const fetchProducts = async () => {
       try {
-        const response = await axios.get(`${baseUrl}/products`)
-        console.log('Products response:', response.data) // Debug log
+        const response = await axios.get(`${baseUrl}/products`, {
+          params: { limit: 10, page: 1, search: '' },
+        })
         if (response.data.status === 'success' && Array.isArray(response.data.data.products)) {
           products.value = response.data.data.products.map((product) => ({
             id: product.id,
             name: product.name,
-            price: product.price.toString(),
+            price: `Rp${product.price.toLocaleString('id-ID')}`,
             image: product.thumbnail_url.replace(/\\\//g, '/'),
             link: `/product-details/${product.id}`,
           }))
         } else {
-          throw new Error('Invalid API response')
+          throw new Error(response.data.message || 'Gagal memuat produk')
         }
       } catch (error) {
         console.error('Error fetching products:', error)
-        products.value = [
-          {
-            id: 1,
-            name: 'Fallback Product',
-            price: '0',
-            image: 'https://placehold.co/200x200?text=Product',
-            link: '/product-details/1',
-          },
-        ]
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Gagal memuat produk',
+        })
+        products.value = []
       }
     }
 
+    const selectCategory = (categoryId) => {
+      sessionStorage.setItem('selectedCategoryId', categoryId)
+      router.push('/category')
+    }
+
     onMounted(() => {
-      console.log('Base URL:', baseUrl) // Debug log
-      fetchBanners()
-      fetchCategories()
-      fetchProducts()
+      console.log('Base URL:', baseUrl)
+      Promise.all([fetchBanners(), fetchCategories(), fetchProducts()])
     })
 
     return {
@@ -189,6 +201,7 @@ export default {
       loading,
       Pagination,
       Navigation,
+      selectCategory,
     }
   },
 }
@@ -204,3 +217,4 @@ export default {
   background-color: #b91c1c !important;
 }
 </style>
+```

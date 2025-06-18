@@ -161,7 +161,7 @@ export default {
 
       try {
         loading.value = true
-        const response = await axios.post(`${baseUrl}/auth/login`, {
+        const response = await axios.post(`${baseUrl}/auth/customer/login`, {
           loginParam: userInput.value,
           password: password.value,
           remember_me: rememberMe.value,
