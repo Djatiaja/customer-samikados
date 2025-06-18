@@ -93,11 +93,12 @@ export default {
     const loading = ref(true)
     const categories = ref([])
     const products = ref([])
-    const baseUrl = import.meta.env.VUE_APP_API_BASE_URL
+    const baseUrl = import.meta.env.VITE_API_BASE_URL // Changed to VITE_
 
     const fetchBanners = async () => {
       try {
         const response = await axios.get(`${baseUrl}/banners`)
+        console.log('Banners response:', response.data) // Debug log
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           banners.value = response.data.data.slice(0, 5).map((banner, index) => ({
             image: banner.picture_url.replace(/\\\//g, '/'),
@@ -123,6 +124,7 @@ export default {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${baseUrl}/categories`)
+        console.log('Categories response:', response.data) // Debug log
         if (response.data.status === 'success' && Array.isArray(response.data.data)) {
           categories.value = response.data.data.map((category) => ({
             name: category.name,
@@ -147,6 +149,7 @@ export default {
     const fetchProducts = async () => {
       try {
         const response = await axios.get(`${baseUrl}/products`)
+        console.log('Products response:', response.data) // Debug log
         if (response.data.status === 'success' && Array.isArray(response.data.data.products)) {
           products.value = response.data.data.products.map((product) => ({
             id: product.id,
@@ -173,6 +176,7 @@ export default {
     }
 
     onMounted(() => {
+      console.log('Base URL:', baseUrl) // Debug log
       fetchBanners()
       fetchCategories()
       fetchProducts()

@@ -18,10 +18,11 @@ import RedirectPage from '@/Main/RedirectPage.vue'
 import ReviewOrder from '@/Main/ReviewOrder.vue'
 import TrackOrder from '@/Main/TrackOrder.vue'
 import { createRouter, createWebHistory } from 'vue-router'
+import axios from 'axios'
 
 const routes = [
   { path: '/', redirect: '/samikados' },
-  { path: '/login', component: Login, meta: { requiresGuest: true } }, // Hanya untuk pengguna yang belum login
+  { path: '/login', component: Login, meta: { requiresGuest: true } },
   { path: '/register', component: Register, meta: { requiresGuest: true } },
   { path: '/verification', component: VerificationEmail, meta: { requiresAuth: true } },
   { path: '/forgot-password', component: ForgotPassword, meta: { requiresGuest: true } },
@@ -50,15 +51,33 @@ const router = createRouter({
 })
 
 // Middleware untuk autentikasi
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('token') // Cek apakah token ada di localStorage
+router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('token')
+  let isAuthenticated = false
+
+  if (token) {
+    try {
+      // Validate token by calling a protected endpoint
+      const baseUrl = import.meta.env.VITE_API_BASE_URL
+      await axios.get(`${baseUrl}/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      isAuthenticated = true
+    } catch (error) {
+      console.error('Invalid token:', error)
+      localStorage.removeItem('token') // Clear invalid token
+      isAuthenticated = false
+    }
+  }
+
+  console.log('Navigating to:', to.path, 'Authenticated:', isAuthenticated) // Debug log
 
   // Jika rute memerlukan autentikasi dan pengguna belum login
   if (to.meta.requiresAuth && !isAuthenticated) {
     return next('/login')
   }
 
-  // Jika rute hanya untuk pengguna yang belum login (misalnya, login/register) dan pengguna sudah login
+  // Jika rute hanya untuk pengguna yang belum login dan pengguna sudah login
   if (to.meta.requiresGuest && isAuthenticated) {
     return next('/home')
   }
