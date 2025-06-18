@@ -110,7 +110,7 @@
             />
           </router-link>
 
-          <router-link to="/notifications" class="flex flex-col items-center">
+          <router-link to="/notifications" class="flex flex-col items-center relative">
             <img
               :src="
                 isActive('/notifications')
@@ -120,6 +120,12 @@
               alt="Notifications"
               class="w-6 h-6"
             />
+            <span
+              v-if="unreadNotifications > 0"
+              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+            >
+              {{ unreadNotifications > 9 ? '9+' : unreadNotifications }}
+            </span>
           </router-link>
 
           <router-link to="/account-settings" class="flex flex-col items-center">
@@ -242,7 +248,7 @@
             />
           </router-link>
 
-          <router-link to="/notifications">
+          <router-link to="/notifications" class="relative">
             <img
               :src="
                 isActive('/notifications')
@@ -252,6 +258,12 @@
               alt="Notification Icon"
               class="w-6.5 h-6.5"
             />
+            <span
+              v-if="unreadNotifications > 0"
+              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+            >
+              {{ unreadNotifications > 9 ? '9+' : unreadNotifications }}
+            </span>
           </router-link>
 
           <router-link to="/account-settings" class="flex items-center space-x-2">
@@ -262,16 +274,19 @@
               alt="User Icon"
               class="w-6.5 h-6.5"
             />
-            <span class="hidden md:inline">AnastasiaPutri</span>
+            <span class="hidden md:inline">{{ userName || 'AnastasiaPutri' }}</span>
           </router-link>
         </div>
       </div>
     </div>
   </header>
 </template>
+
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
+import axios from 'axios'
+import Swal from 'sweetalert2'
 
 const route = useRoute()
 const locationQuery = ref('')
@@ -279,6 +294,11 @@ const productQuery = ref('')
 const showLocationDropdown = ref(false)
 const mobileMenuOpen = ref(false)
 const selectedLocation = ref(null)
+const unreadNotifications = ref(0)
+const notificationTimer = ref(null)
+const userName = ref('')
+
+const base_url = import.meta.env.VITE_API_BASE_URL
 
 // Data untuk lokasi dengan agen SAMIKADOS saja
 const locations = [
@@ -316,8 +336,6 @@ const isActive = (path) => {
 // Toggle mobile menu
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value
-
-  // Close dropdown when toggling menu
   if (!mobileMenuOpen.value) {
     showLocationDropdown.value = false
   }
@@ -349,10 +367,53 @@ const selectLocation = (location) => {
   selectedLocation.value = location
   locationQuery.value = `${location.name}, ${location.province}`
   showLocationDropdown.value = false
-
-  // Here you could emit an event or use a store to notify other components
-  // about the location change
   console.log('Selected location:', location)
+}
+
+// Fetch notification count
+const fetchNotificationCount = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.warn('No authentication token found')
+      return
+    }
+
+    const response = await axios.get(`${base_url}/seller/notifikasi/count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (response.data.status === 'success') {
+      unreadNotifications.value = response.data.data.belum_terbaca
+    } else {
+      throw new Error(response.data.message || 'Gagal memuat jumlah notifikasi')
+    }
+  } catch (error) {
+    console.error('Fetch notification count error:', error)
+  }
+}
+
+// Fetch user profile for username
+const fetchUserProfile = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.warn('No authentication token found')
+      return
+    }
+
+    const response = await axios.get(`${base_url}/customer/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (response.data.status === 'success') {
+      userName.value = response.data.data.name || 'AnastasiaPutri'
+    } else {
+      throw new Error(response.data.message || 'Gagal memuat profil')
+    }
+  } catch (error) {
+    console.error('Fetch user profile error:', error)
+  }
 }
 
 // Handler for clicking outside the dropdown
@@ -366,17 +427,24 @@ const handleClickOutside = (event) => {
     }
   }
 }
-// Add click outside listener
+
+// Add click outside listener and fetch initial data
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  fetchNotificationCount()
+  fetchUserProfile()
 
-  // Set default selected location if desired
-  // Example: Set Jakarta Pusat as default
-  // selectedLocation.value = locations.find(loc => loc.id === 1)
+  // Polling every 60 seconds
+  notificationTimer.value = setInterval(() => {
+    fetchNotificationCount()
+  }, 60000)
 })
 
-// Clean up event listener when component is unmounted
+// Clean up
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (notificationTimer.value) {
+    clearInterval(notificationTimer.value)
+  }
 })
 </script>

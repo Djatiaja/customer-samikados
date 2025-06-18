@@ -18,7 +18,6 @@ import RedirectPage from '@/Main/RedirectPage.vue'
 import ReviewOrder from '@/Main/ReviewOrder.vue'
 import TrackOrder from '@/Main/TrackOrder.vue'
 import { createRouter, createWebHistory } from 'vue-router'
-import axios from 'axios'
 
 const routes = [
   { path: '/', redirect: '/samikados' },
@@ -51,38 +50,21 @@ const router = createRouter({
 })
 
 // Middleware untuk autentikasi
-router.beforeEach(async (to, from, next) => {
-  const token = localStorage.getItem('token')
-  let isAuthenticated = false
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = !!localStorage.getItem('token') // Cek apakah token ada
+  console.log('Navigating to:', to.path, 'Authenticated:', isAuthenticated) // Debug
 
-  if (token) {
-    try {
-      // Validate token by calling a protected endpoint
-      const baseUrl = import.meta.env.VITE_API_BASE_URL
-      await axios.get(`${baseUrl}/user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      isAuthenticated = true
-    } catch (error) {
-      console.error('Invalid token:', error)
-      localStorage.removeItem('token') // Clear invalid token
-      isAuthenticated = false
-    }
-  }
-
-  console.log('Navigating to:', to.path, 'Authenticated:', isAuthenticated) // Debug log
-
-  // Jika rute memerlukan autentikasi dan pengguna belum login
+  // Jika rute memerlukan autentikasi dan belum login
   if (to.meta.requiresAuth && !isAuthenticated) {
     return next('/login')
   }
 
-  // Jika rute hanya untuk pengguna yang belum login dan pengguna sudah login
+  // Jika rute hanya untuk tamu (belum login) dan sudah login
   if (to.meta.requiresGuest && isAuthenticated) {
     return next('/home')
   }
 
-  // Lanjutkan ke rute yang diminta
+  // Lanjut ke rute tujuan
   next()
 })
 

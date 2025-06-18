@@ -1,4 +1,3 @@
-```vue
 <template>
   <div></div>
 </template>
@@ -24,7 +23,7 @@ export default {
     },
   },
   setup(props, { emit }) {
-    const base_url = 'http://127.0.0.1:8000/api'
+    const base_url = import.meta.env.VITE_API_BASE_URL // Gunakan variabel .env
     const form = ref({
       id: props.user.addresses[props.index]?.id || null,
       name: props.user.addresses[props.index]?.name || '',
@@ -47,6 +46,7 @@ export default {
         const response = await axios.get(`${base_url}/customer/address/provinces`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+        console.log('Provinces response:', response.data) // Debug response
         if (response.data.status === 'success') {
           provinces.value = response.data.data
         }
@@ -64,6 +64,7 @@ export default {
         const response = await axios.get(`${base_url}/customer/address/cities/${province_id}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+        console.log('Cities response:', response.data) // Debug response
         if (response.data.status === 'success') {
           cities.value = response.data.data
         }
@@ -80,6 +81,7 @@ export default {
         const response = await axios.get(`${base_url}/customer/address/subdistricts/${city_id}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+        console.log('Subdistricts response:', response.data) // Debug response
         if (response.data.status === 'success') {
           subdistricts.value = response.data.data
         }
@@ -138,6 +140,7 @@ export default {
 
     const showEditAddressModal = async () => {
       try {
+        console.log('Base URL:', base_url) // Debug URL
         await fetchProvinces()
         if (form.value.province_id) await fetchCities(form.value.province_id)
         if (form.value.city_id) await fetchSubdistricts(form.value.city_id)
@@ -447,4 +450,3 @@ export default {
   },
 }
 </script>
-```
