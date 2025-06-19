@@ -1,4 +1,3 @@
-```vue
 <template>
   <div></div>
 </template>
@@ -6,6 +5,7 @@
 <script>
 import { ref, watch } from 'vue'
 import Swal from 'sweetalert2'
+import axios from 'axios'
 
 export default {
   props: {
@@ -19,51 +19,143 @@ export default {
     },
   },
   setup(props, { emit }) {
-    const addresses = ref(props.user.addresses)
+    const addresses = ref(props.user?.addresses || [])
+    const isLoading = ref(false)
+    const base_url = import.meta.env.VITE_API_BASE_URL
+
+    const fetchAddresses = async () => {
+      try {
+        isLoading.value = true
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+
+        const response = await axios.get(`${base_url}/customer/address`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (response.data.status === 'success') {
+          addresses.value = response.data.data
+        }
+      } catch (error) {
+        console.error('Error fetching addresses:', error)
+        if (error.response?.status === 401) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Sesi Berakhir',
+            text: 'Silakan login kembali',
+            confirmButtonColor: '#dc2626',
+          }).then(() => {
+            emit('logout')
+          })
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Gagal memuat daftar alamat',
+            confirmButtonColor: '#dc2626',
+          })
+        }
+      } finally {
+        isLoading.value = false
+      }
+    }
+
+    const setDefaultAddress = async (addressId) => {
+      try {
+        const addressToUpdate = addresses.value.find((addr) => addr.id === addressId)
+        if (!addressToUpdate) {
+          throw new Error('Address not found')
+        }
+
+        const formData = new FormData()
+        formData.append('is_default', '1')
+        formData.append('label', addressToUpdate.label || '')
+        formData.append('address', addressToUpdate.address || '')
+        formData.append('phone', addressToUpdate.phone || '')
+        formData.append('detail', addressToUpdate.detail || '')
+        formData.append('zip_code', addressToUpdate.zip_code || '')
+
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+
+        const response = await axios.post(`${base_url}/customer/address/${addressId}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
+        if (response.data.status === 'success') {
+          await fetchAddresses()
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'Alamat utama berhasil diubah',
+            timer: 1500,
+            showConfirmButton: false,
+          })
+        }
+      } catch (error) {
+        console.error('Error setting default address:', error)
+        if (error.response?.status === 401) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Sesi Berakhir',
+            text: 'Silakan login kembali',
+            confirmButtonColor: '#dc2626',
+          }).then(() => {
+            emit('logout')
+          })
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.message || 'Gagal mengubah alamat utama',
+            confirmButtonColor: '#dc2626',
+          })
+        }
+      }
+    }
 
     const renderAddresses = () => {
-      return props.user.addresses.length > 0
-        ? props.user.addresses
+      if (isLoading.value) {
+        return `<div class="bg-gray-100 p-4 rounded-lg text-center text-gray-500">Memuat alamat...</div>`
+      }
+
+      return addresses.value.length > 0
+        ? addresses.value
             .map(
               (address, index) => `
               <div class="bg-gray-100 p-4 mb-2 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                <div class="mb-2 sm:mb-0">
-                  <div class="inline-flex items-center">
-                    <span class="font-semibold">${address.name || 'Nama Tidak Ada'}</span>
-                    ${
-                      address.is_default
-                        ? `<span class="ml-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">Utama</span>`
-                        : ''
-                    }
-                  </div><br>
-                  ${address.address || 'Detail Alamat Tidak Ada'}<br>
-                  ${address.subdistrict?.city?.province?.name || ''},
-                  ${address.subdistrict?.city?.name || ''},
-                  ${address.subdistrict?.name || ''},
-                  ${address.postal_code || ''}
+                <div class="mb-2 sm:mb-0 flex-1 mr-4">
+                  <div class="font-semibold">${address.label || 'Label Tidak Ada'}</div>
+                  ${address.detail ? `<div class="text-sm text-gray-600 mt-1">${address.detail}</div>` : ''}
                 </div>
                 <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-2 sm:mt-0">
                   ${
-                    !address.is_default
-                      ? `<button
-                          data-index="${index}"
-                          class="set-primary-btn text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded min-w-[80px] max-w-xs"
+                    address.is_default === 1
+                      ? `<span class="bg-red-600 text-white text-xs px-3 py-1.5 rounded-full text-center min-w-[80px]">Utama</span>`
+                      : `<button
+                          data-id="${address.id}"
+                          class="set-primary-btn text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded min-w-[80px]"
                         >
                           Set Utama
                         </button>`
-                      : ''
                   }
                   <button
+                    data-id="${address.id}"
                     data-index="${index}"
-                    class="edit-btn text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded min-w-[80px] max-w-xs"
+                    class="edit-btn text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded min-w-[80px]"
                   >
                     Edit
                   </button>
                   ${
-                    props.user.addresses.length > 1
+                    addresses.value.length > 1
                       ? `<button
+                          data-id="${address.id}"
                           data-index="${index}"
-                          class="delete-btn text-xs bg-red-100 hover:bg-red-200 px-2 py-1 rounded min-w-[80px] max-w-xs"
+                          class="delete-btn text-xs bg-red-100 hover:bg-red-200 px-2 py-1 rounded min-w-[80px]"
                         >
                           Hapus
                         </button>`
@@ -77,8 +169,47 @@ export default {
         : `<div class="bg-gray-100 p-4 rounded-lg text-center text-gray-500">Belum ada alamat</div>`
     }
 
-    const showAddressListModal = () => {
+    const attachEventListeners = () => {
+      document.querySelectorAll('.set-primary-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const addressId = Number(btn.getAttribute('data-id'))
+          await setDefaultAddress(addressId)
+        })
+      })
+
+      document.querySelectorAll('.edit-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const addressId = btn.getAttribute('data-id')
+          const index = Number(btn.getAttribute('data-index'))
+          emit('edit-address', { id: addressId, index })
+          Swal.close()
+        })
+      })
+
+      document.querySelectorAll('.delete-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const addressId = btn.getAttribute('data-id')
+          const index = Number(btn.getAttribute('data-index'))
+          emit('confirm-delete-address', { id: addressId, index })
+        })
+      })
+    }
+
+    const updateModalContent = () => {
+      Swal.update({
+        html: `
+          <div class="text-left form-compact">
+            ${renderAddresses()}
+          </div>
+        `,
+      })
+      attachEventListeners()
+    }
+
+    const showAddressListModal = async () => {
       try {
+        await fetchAddresses()
+
         Swal.fire({
           title: `<h3 class="text-lg font-bold">Daftar Alamat</h3>`,
           html: `
@@ -90,7 +221,6 @@ export default {
           confirmButtonText: 'Tutup',
           focusConfirm: false,
           width: '600px',
-          maxWidth: '700px',
           buttonsStyling: false,
           customClass: {
             container: 'swal-container',
@@ -130,63 +260,7 @@ export default {
             `
             document.head.appendChild(styleElement)
 
-            document.querySelectorAll('.set-primary-btn').forEach((btn) => {
-              btn.addEventListener('click', () => {
-                const index = Number(btn.getAttribute('data-index'))
-                emit('set-primary-address', index)
-                Swal.close()
-              })
-            })
-
-            document.querySelectorAll('.edit-btn').forEach((btn) => {
-              btn.addEventListener('click', () => {
-                const index = Number(btn.getAttribute('data-index'))
-                emit('edit-address', index)
-                Swal.close()
-              })
-            })
-
-            document.querySelectorAll('.delete-btn').forEach((btn) => {
-              btn.addEventListener('click', () => {
-                const index = Number(btn.getAttribute('data-index'))
-                emit('confirm-delete-address', index)
-                Swal.update({
-                  html: `
-                    <div class="text-left form-compact">
-                      ${renderAddresses()}
-                    </div>
-                  `,
-                })
-                // Re-attach event listeners after update
-                document.querySelectorAll('.set-primary-btn').forEach((btn) => {
-                  btn.addEventListener('click', () => {
-                    const index = Number(btn.getAttribute('data-index'))
-                    emit('set-primary-address', index)
-                    Swal.close()
-                  })
-                })
-                document.querySelectorAll('.edit-btn').forEach((btn) => {
-                  btn.addEventListener('click', () => {
-                    const index = Number(btn.getAttribute('data-index'))
-                    emit('edit-address', index)
-                    Swal.close()
-                  })
-                })
-                document.querySelectorAll('.delete-btn').forEach((btn) => {
-                  btn.addEventListener('click', () => {
-                    const index = Number(btn.getAttribute('data-index'))
-                    emit('confirm-delete-address', index)
-                    Swal.update({
-                      html: `
-                        <div class="text-left form-compact">
-                          ${renderAddresses()}
-                        </div>
-                      `,
-                    })
-                  })
-                })
-              })
-            })
+            attachEventListeners()
           },
         }).then((result) => {
           if (result.isConfirmed || result.isDismissed) {
@@ -202,22 +276,17 @@ export default {
       () => props.visible,
       (newVisible) => {
         if (newVisible) {
-          addresses.value = props.user.addresses
           showAddressListModal()
         }
       },
       { immediate: true },
     )
 
-    watch(
-      () => props.user.addresses,
-      (newAddresses) => {
-        addresses.value = newAddresses
-      },
-    )
-
-    return { showAddressListModal }
+    return {
+      showAddressListModal,
+      fetchAddresses,
+      addresses,
+    }
   },
 }
 </script>
-```

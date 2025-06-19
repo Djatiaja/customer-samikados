@@ -1,11 +1,13 @@
 <template>
-  <div class="bg-gray-100">
+  <div class="flex flex-col min-h-screen bg-gray-100">
+    <!-- Header -->
     <HeaderAfterLogin />
-    <div class="flex flex-col md:flex-row">
-      <main class="w-full p-6 mt-10">
-        <div class="w-full flex justify-center">
+    <!-- Content Wrapper -->
+    <div class="flex-1 mt-16">
+      <div class="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+        <div class="flex justify-center">
           <section
-            class="flex flex-col md:flex-row items-center md:items-start md:space-x-10 justify-center max-w-7xl mx-auto px-4"
+            class="flex flex-col md:flex-row items-center md:items-start md:space-x-10 w-full rounded-lg p-6"
           >
             <ProfilePicture :user="user" @open-change-photo-modal="handleOpenChangePhotoModal" />
             <ProfileDetails
@@ -20,11 +22,13 @@
             />
           </section>
         </div>
-        <ActionButtons
-          @open-change-password-modal="handleOpenChangePasswordModal"
-          @logout="handleLogout"
-        />
-        <!-- AddAddressModal -->
+        <div class="flex justify-center mt-6">
+          <ActionButtons
+            @open-change-password-modal="handleOpenChangePasswordModal"
+            @logout="handleLogout"
+          />
+        </div>
+        <!-- Modals -->
         <AddAddressModal
           v-if="showAddAddressModal"
           :user="user"
@@ -32,56 +36,46 @@
           @add-address="addAddress"
           @close="handleCloseAddAddressModal"
         />
-      </main>
+        <EditAddressModal
+          v-if="showEditAddressModal"
+          :user="user"
+          :index="selectedAddressIndex"
+          :visible="showEditAddressModal"
+          @update-address="updateAddress"
+          @close="handleCloseEditAddressModal"
+        />
+        <AddressListModal
+          v-if="showAddressListModal"
+          :user="user"
+          :visible="showAddressListModal"
+          @set-primary-address="setAsPrimaryAddress"
+          @edit-address="handleEditAddress"
+          @confirm-delete-address="confirmDeleteAddress"
+          @close="handleCloseAddressListModal"
+        />
+        <EditProfileModal
+          v-if="showEditProfileModal"
+          :user="user"
+          :visible="showEditProfileModal"
+          @update-profile="updateProfile"
+          @close="handleCloseEditProfileModal"
+        />
+        <ChangePasswordModal
+          v-if="showChangePasswordModal"
+          :visible="showChangePasswordModal"
+          @change-password="changePassword"
+          @close="handleCloseChangePasswordModal"
+        />
+        <ChangePhotoModal
+          v-if="showChangePhotoModal"
+          :user="user"
+          :visible="showChangePhotoModal"
+          @change-photo="updateProfilePhoto"
+          @close="handleCloseChangePhotoModal"
+        />
+      </div>
     </div>
     <AuthFooter />
-
-    <!-- Modal Edit Address -->
-    <EditAddressModal
-      v-if="showEditAddressModal"
-      :user="user"
-      :index="selectedAddressIndex"
-      :visible="showEditAddressModal"
-      @update-address="updateAddress"
-      @close="handleCloseEditAddressModal"
-    />
-
-    <!-- Modal Address List -->
-    <AddressListModal
-      v-if="showAddressListModal"
-      :user="user"
-      :visible="showAddressListModal"
-      @set-primary-address="setAsPrimaryAddress"
-      @edit-address="handleEditAddress"
-      @confirm-delete-address="confirmDeleteAddress"
-      @close="handleCloseAddressListModal"
-    />
-
-    <!-- Modal Edit Profile -->
-    <EditProfileModal
-      v-if="showEditProfileModal"
-      :user="user"
-      :visible="showEditProfileModal"
-      @update-profile="updateProfile"
-      @close="handleCloseEditProfileModal"
-    />
-
-    <!-- Modal Change Password -->
-    <ChangePasswordModal
-      v-if="showChangePasswordModal"
-      :visible="showChangePasswordModal"
-      @change-password="changePassword"
-      @close="handleCloseChangePasswordModal"
-    />
-
-    <!-- Modal Change Photo -->
-    <ChangePhotoModal
-      v-if="showChangePhotoModal"
-      :user="user"
-      :visible="showChangePhotoModal"
-      @change-photo="updateProfilePhoto"
-      @close="handleCloseChangePhotoModal"
-    />
   </div>
 </template>
 
@@ -128,7 +122,6 @@ export default {
     })
 
     const base_url = import.meta.env.VITE_API_BASE_URL
-
     const showAddAddressModal = ref(false)
     const showEditAddressModal = ref(false)
     const showAddressListModal = ref(false)
@@ -141,7 +134,7 @@ export default {
       try {
         const token = localStorage.getItem('token')
         if (!token) {
-          throw new Error('Token autentikasi ga ada')
+          throw new Error('Token autentikasi tidak ada')
         }
 
         console.log('Base URL:', base_url)
@@ -183,6 +176,11 @@ export default {
           icon: 'error',
           title: 'Error',
           text: error.message || 'Gagal memuat profil',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
         })
       }
     }
@@ -194,6 +192,14 @@ export default {
       return phoneNumber.replace(/(\d{4})(\d{4})(\d{4})/, '$1-$2-$3')
     }
 
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount)
+    }
+
     const setAsPrimaryAddress = (index) => {
       user.addresses.forEach((addr, i) => {
         addr.is_default = i === index ? 1 : 0
@@ -201,11 +207,37 @@ export default {
     }
 
     const confirmDeleteAddress = (index) => {
-      if (user.addresses[index].is_default && user.addresses.length > 1) {
-        const newPrimaryIndex = index === 0 ? 1 : 0
-        user.addresses[newPrimaryIndex].is_default = 1
-      }
-      user.addresses.splice(index, 1)
+      Swal.fire({
+        title: 'Konfirmasi Hapus Alamat',
+        text: 'Yakin mau hapus alamat ini?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya',
+        cancelButtonText: 'Batal',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md mr-4',
+          cancelButton: 'bg-gray-200 text-black py-2 px-4 rounded-md',
+        },
+      }).then((result) => {
+        if (result.isConfirmed) {
+          if (user.addresses[index].is_default && user.addresses.length > 1) {
+            const newPrimaryIndex = index === 0 ? 1 : 0
+            user.addresses[newPrimaryIndex].is_default = 1
+          }
+          user.addresses.splice(index, 1)
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'Alamat berhasil dihapus',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+            },
+          })
+        }
+      })
     }
 
     const addAddress = (newAddress) => {
@@ -214,6 +246,16 @@ export default {
       }
       user.addresses.push(newAddress)
       showAddAddressModal.value = false
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Alamat berhasil ditambahkan',
+        confirmButtonText: 'OK',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+        },
+      })
     }
 
     const handleEditAddress = (index) => {
@@ -227,6 +269,16 @@ export default {
       }
       user.addresses[index] = updatedAddress
       showEditAddressModal.value = false
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Alamat berhasil diperbarui',
+        confirmButtonText: 'OK',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+        },
+      })
     }
 
     const handleOpenAddressListModal = () => {
@@ -266,6 +318,11 @@ export default {
             icon: 'success',
             title: 'Berhasil',
             text: response.data.message || 'Profil berhasil diperbarui',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+            },
           })
         } else {
           throw new Error(response.data.message || 'Gagal update profil')
@@ -275,6 +332,11 @@ export default {
           icon: 'error',
           title: 'Error',
           text: error.response?.data?.message || error.message || 'Gagal menyimpan profil',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
         })
         console.error('Update profile error:', error)
       }
@@ -304,6 +366,11 @@ export default {
             icon: 'success',
             title: 'Berhasil',
             text: response.data.message || 'Foto profil berhasil diperbarui',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+            },
           })
         } else {
           throw new Error(response.data.message || 'Gagal update foto profil')
@@ -313,6 +380,11 @@ export default {
           icon: 'error',
           title: 'Error',
           text: error.response?.data?.message || error.message || 'Gagal upload foto',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
         })
         console.error('Update photo error:', error)
       }
@@ -320,6 +392,16 @@ export default {
 
     const changePassword = () => {
       showChangePasswordModal.value = false
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Kata sandi berhasil diubah',
+        confirmButtonText: 'OK',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+        },
+      })
     }
 
     const handleOpenChangePhotoModal = () => {
@@ -359,8 +441,34 @@ export default {
     }
 
     const handleLogout = () => {
-      localStorage.removeItem('token')
-      router.push('/login')
+      Swal.fire({
+        title: 'Konfirmasi Logout',
+        text: 'Yakin mau logout?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya',
+        cancelButtonText: 'Batal',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md mr-4',
+          cancelButton: 'bg-gray-200 text-black py-2 px-4 rounded-md',
+        },
+      }).then((result) => {
+        if (result.isConfirmed) {
+          localStorage.removeItem('token')
+          router.push('/login')
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'Kamu berhasil logout',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+            },
+          })
+        }
+      })
     }
 
     return {
@@ -373,6 +481,7 @@ export default {
       showChangePhotoModal,
       selectedAddressIndex,
       formatPhoneNumber,
+      formatCurrency,
       setAsPrimaryAddress,
       confirmDeleteAddress,
       addAddress,
@@ -398,7 +507,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .modal {
   position: fixed;
   top: 0;
@@ -429,7 +538,7 @@ export default {
   cursor: pointer;
 }
 
-.submit-btn-btn {
+.submit-btn {
   background-color: #dc2626;
   color: white;
   border: none;
