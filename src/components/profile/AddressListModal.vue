@@ -37,6 +37,7 @@ export default {
 
         if (response.data.status === 'success') {
           addresses.value = response.data.data
+          emit('update-addresses', response.data.data) // Emit ke parent
         }
       } catch (error) {
         console.error('Error fetching addresses:', error)
@@ -173,6 +174,7 @@ export default {
       document.querySelectorAll('.set-primary-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const addressId = Number(btn.getAttribute('data-id'))
+          console.log('Clicked set-primary-btn:', { addressId }) // Debug
           await setDefaultAddress(addressId)
         })
       })
@@ -180,8 +182,9 @@ export default {
       document.querySelectorAll('.edit-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           const addressId = btn.getAttribute('data-id')
-          const index = Number(btn.getAttribute('data-index'))
-          emit('edit-address', { id: addressId, index })
+          const address = addresses.value.find((addr) => addr.id === Number(addressId))
+          console.log('Emitting edit-address:', address) // Debug
+          emit('edit-address', address)
           Swal.close()
         })
       })
@@ -190,6 +193,7 @@ export default {
         btn.addEventListener('click', () => {
           const addressId = btn.getAttribute('data-id')
           const index = Number(btn.getAttribute('data-index'))
+          console.log('Emitting confirm-delete-address:', { id: addressId, index }) // Debug
           emit('confirm-delete-address', { id: addressId, index })
         })
       })
@@ -268,7 +272,7 @@ export default {
           }
         })
       } catch (error) {
-        // Silent catch
+        console.error('Error showing address list modal:', error)
       }
     }
 

@@ -24,15 +24,27 @@
 
       <!-- Teks LOGIN | REGISTER di kanan -->
       <div class="flex space-x-2 sm:space-x-4">
-        <a href="/login" class="text-xs sm:text-sm lg:text-lg">LOGIN</a>
+        <button
+          @click="goToLogin"
+          class="text-xs sm:text-sm lg:text-lg hover:underline cursor-pointer"
+        >
+          LOGIN
+        </button>
         <span class="hidden sm:inline">|</span>
-        <a href="/register" class="text-xs sm:text-sm lg:text-lg">REGISTER</a>
+        <button
+          @click="goToRegister"
+          class="text-xs sm:text-sm lg:text-lg hover:underline cursor-pointer"
+        >
+          REGISTER
+        </button>
       </div>
     </div>
   </header>
 </template>
 
 <script>
+import { useRouter } from 'vue-router'
+
 export default {
   props: {
     showSearch: {
@@ -47,6 +59,38 @@ export default {
       type: String,
       default: '',
     },
+  },
+  setup() {
+    const router = useRouter()
+
+    const goToLogin = () => {
+      // Clear any existing invalid token first
+      const token = localStorage.getItem('token')
+      console.log('Current token before login:', token)
+
+      // If token exists but user clicking login, likely token is invalid
+      if (token) {
+        localStorage.removeItem('token')
+        console.log('Removed invalid token')
+      }
+
+      router.push('/login')
+    }
+
+    const goToRegister = () => {
+      // Clear any existing invalid token first
+      const token = localStorage.getItem('token')
+      if (token) {
+        localStorage.removeItem('token')
+      }
+
+      router.push('/register')
+    }
+
+    return {
+      goToLogin,
+      goToRegister,
+    }
   },
 }
 </script>
