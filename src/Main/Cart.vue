@@ -2,20 +2,8 @@
   <div class="bg-gray-200 flex flex-col min-h-screen">
     <HeaderAfterLogin />
 
-    <!-- Checkout all products -->
-    <div class="w-full md:w-3/4 flex mx-auto mb-4 mt-4 md:mb-10 md:mt-10 bg-white p-3 md:p-5">
-      <input
-        id="checkAllProducts"
-        type="checkbox"
-        class="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-4 checkbox-red"
-        v-model="selectAll"
-        @change="toggleSelectAll"
-      />
-      <h2 class="text-sm md:text-base">Checkout semua produk</h2>
-    </div>
-
     <!-- Cart Content Wrapper -->
-    <section class="w-full md:w-3/4 px-3 md:px-0 mx-auto flex-grow mb-32">
+    <section class="w-full md:w-3/4 px-3 md:px-0 mx-auto flex-grow mb-32 mt-10">
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-10">
         <p class="text-lg">Memuat keranjang...</p>
@@ -44,7 +32,8 @@
     <!-- Floating Checkout Bar -->
     <div
       v-if="cartData.length"
-      class="fixed bottom-16 md:bottom-20 left-0 md:left-1/2 transform md:-translate-x-1/2 w-full md:w-3/4 bg-white p-3 md:p-4 shadow-lg flex justify-between items-center"
+      class="fixed bottom-16 md:bottom-20 left-0 md:left-1/2 transform md:-translate-x-1/2 w-full md:w-3/4 bg-white p-3 md:p-4 shadow-lg flex justify-between items-center checkout-bar"
+      ref="checkoutBar"
     >
       <div class="ml-3 md:ml-10">
         <span class="text-base md:text-lg font-bold">Total Harga:</span>
@@ -60,7 +49,7 @@
       </button>
     </div>
 
-    <AuthFooter />
+    <AuthFooter ref="footer" />
   </div>
 </template>
 
@@ -80,7 +69,6 @@ export default {
   },
   data() {
     return {
-      selectAll: false,
       loading: false,
       cartData: [],
       variants: {}, // Cache per product_id
@@ -107,18 +95,61 @@ export default {
     }
     this.fetchCart()
   },
+  mounted() {
+    window.addEventListener('scroll', this.handleScroll)
+    window.addEventListener('resize', this.handleScroll)
+    this.handleScroll() // Initial adjustment
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll)
+    window.removeEventListener('resize', this.handleScroll)
+  },
   methods: {
+    handleScroll() {
+      const checkoutBar = this.$refs.checkoutBar
+      const footer = this.$refs.footer?.$el
+      if (!checkoutBar || !footer) return
+
+      const footerRect = footer.getBoundingClientRect()
+      const checkoutBarRect = checkoutBar.getBoundingClientRect()
+      const windowHeight = window.innerHeight
+
+      // Default bottom spacing for the checkout bar
+      const defaultBottom = window.innerWidth < 768 ? 64 : 80 // 16rem or 20rem in pixels (64px or 80px)
+      const buffer = 20 // Small gap between checkout bar and footer
+
+      // Calculate the position where the checkout bar would be if fixed
+      const checkoutBarBottom = windowHeight - checkoutBarRect.height - defaultBottom
+
+      // If the footer is above the checkout bar's fixed position, adjust the bottom property
+      if (footerRect.top <= checkoutBarBottom + checkoutBarRect.height + buffer) {
+        // Pin the checkout bar just above the footer
+        checkoutBar.style.bottom = `${windowHeight - footerRect.top + buffer}px`
+      } else {
+        // Revert to default fixed positioning
+        checkoutBar.style.bottom = `${defaultBottom}px`
+      }
+    },
     async fetchCart() {
       this.loading = true
       try {
         const response = await axios.get(`${this.baseUrl}/customer/cart`, {
           headers: { Authorization: `Bearer ${this.token}` },
         })
+
+        console.log('API Response:', response.data) // Debug log
+
         if (response.data.status === 'success') {
+          // Filter out invalid or deleted products
           const validCartItems = response.data.data.filter(
-            (item) => item.product && item.product.id && item.product.is_publish,
+            (item) => item.product && item.product.id && item.product.deleted_at === null,
           )
+
+          console.log('Valid cart items:', validCartItems) // Debug log
+
           this.cartData = this.groupBySeller(validCartItems)
+
+          console.log('Grouped cart data:', this.cartData) // Debug log
 
           // Pre-fetch variants and finishings for all products
           const productIds = [...new Set(validCartItems.map((item) => item.product.id))]
@@ -130,6 +161,7 @@ export default {
           throw new Error(response.data.message)
         }
       } catch (error) {
+        console.error('Fetch cart error:', error) // Debug log
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
@@ -156,16 +188,13 @@ export default {
           headers: { Authorization: `Bearer ${this.token}` },
           params: { product_id: productId },
         })
-        console.log('Fetch Variants Response:', response.data)
         if (response.data.status === 'success') {
           this.variants[productId] = response.data.data
-          console.log('Variants Set for product_id:', productId, this.variants[productId])
         } else {
           this.variants[productId] = []
         }
       } catch (error) {
         this.variants[productId] = []
-        console.error('Error Fetch Variants:', error.response || error)
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
@@ -179,16 +208,13 @@ export default {
           headers: { Authorization: `Bearer ${this.token}` },
           params: { product_id: productId },
         })
-        console.log('Fetch Finishings Response:', response.data)
         if (response.data.status === 'success') {
           this.finishings[productId] = response.data.data
-          console.log('Finishings Set for product_id:', productId, this.finishings[productId])
         } else {
           this.finishings[productId] = []
         }
       } catch (error) {
         this.finishings[productId] = []
-        console.error('Error Fetch Finishings:', error.response || error)
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
@@ -244,8 +270,6 @@ export default {
       }
 
       await Promise.all([this.fetchVariants(item.productId), this.fetchFinishings(item.productId)])
-      console.log('Variants for modal:', this.variants[item.productId])
-      console.log('Finishings for modal:', this.finishings[item.productId])
 
       const variantOptions = (this.variants[item.productId] || [])
         .map(
@@ -423,14 +447,6 @@ export default {
       item.price = variant ? variant.price : item.basePrice
       item.finishingPrice = finishing ? finishing.price : 0
 
-      console.log('Sending update request:', {
-        cart_id: item.id,
-        quantity: formData.quantity,
-        product_variant_id: formData.variantId,
-        product_finishing_id: formData.finishingId,
-        additional_info: formData.note,
-      })
-
       try {
         const response = await axios.post(
           `${this.baseUrl}/customer/cart/${item.id}`,
@@ -442,7 +458,6 @@ export default {
           },
           { headers: { Authorization: `Bearer ${this.token}` } },
         )
-        console.log('Update response:', response.data)
         if (response.data.status === 'success') {
           Swal.fire({
             title: 'Produk Diperbarui',
@@ -459,7 +474,6 @@ export default {
           throw new Error(response.data.message)
         }
       } catch (error) {
-        console.error('Update error:', error.response?.data)
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
@@ -470,7 +484,6 @@ export default {
             errorMessage.includes('invalid') ||
             error.response?.data?.errors?.product_finishing_id
           ) {
-            // Refresh finishings cache if invalid
             delete this.finishings[productId]
             await this.fetchFinishings(productId)
             Swal.fire({
@@ -507,13 +520,6 @@ export default {
         return
       }
       const item = this.cartData[sellerIndex].items[itemIndex]
-      console.log('Updating cart item:', {
-        cart_id: item.id,
-        quantity: item.quantity,
-        product_variant_id: item.specs.variantId,
-        product_finishing_id: item.specs.finishingId,
-        additional_info: item.specs.note,
-      })
       try {
         const response = await axios.post(
           `${this.baseUrl}/customer/cart/${item.id}`,
@@ -547,7 +553,6 @@ export default {
           throw new Error(response.data.message)
         }
       } catch (error) {
-        console.error('Update cart error:', error.response?.data)
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           this.$router.push('/login')
@@ -558,7 +563,6 @@ export default {
             errorMessage.includes('invalid') ||
             error.response?.data?.errors?.product_finishing_id
           ) {
-            // Refresh finishings cache if invalid
             delete this.finishings[item.productId]
             await this.fetchFinishings(item.productId)
             Swal.fire({
@@ -702,13 +706,15 @@ export default {
         this.$router.push('/login')
         return
       }
-      const hasSelectedItems = this.cartData.some((seller) =>
-        seller.items.some((item) => item.isSelected),
+
+      const selectedItems = this.cartData.flatMap((seller) =>
+        seller.items.filter((item) => item.isSelected),
       )
-      if (!hasSelectedItems) {
+
+      if (!selectedItems.length) {
         Swal.fire({
           title: 'Tidak Ada Produk Dipilih',
-          text: 'Pilih produk dulu untuk checkout',
+          text: 'Pilih setidaknya satu produk untuk checkout',
           icon: 'warning',
           buttonsStyling: false,
           customClass: {
@@ -720,7 +726,12 @@ export default {
         })
         return
       }
-      this.$router.push('/checkout')
+
+      const cartIds = selectedItems.map((item) => item.id)
+      this.$router.push({
+        path: '/checkout',
+        query: { cart_ids: cartIds },
+      })
     },
     async increaseQuantity(sellerIndex, itemIndex) {
       if (!this.token) {
@@ -742,34 +753,24 @@ export default {
         await this.updateCartItem(sellerIndex, itemIndex)
       }
     },
-    toggleSelectAll() {
-      this.cartData.forEach((seller) => {
-        seller.isSelected = this.selectAll
-        seller.items.forEach((item) => {
-          item.isSelected = this.selectAll
-        })
-      })
-    },
     updateSellerSelection(sellerIndex) {
       const seller = this.cartData[sellerIndex]
       seller.isSelected = !seller.isSelected
       seller.items.forEach((item) => {
         item.isSelected = seller.isSelected
       })
-      this.updateSelectionState()
     },
     updateItemSelection(sellerIndex, itemIndex) {
       const seller = this.cartData[sellerIndex]
       const item = seller.items[itemIndex]
       item.isSelected = !item.isSelected
       seller.isSelected = seller.items.every((item) => item.isSelected)
-      this.updateSelectionState()
     },
     updateSelectionState() {
-      const allSelected = this.cartData.every(
-        (seller) => seller.isSelected && seller.items.every((item) => item.isSelected),
-      )
-      this.selectAll = allSelected
+      // Update seller selection state based on items
+      this.cartData.forEach((seller) => {
+        seller.isSelected = seller.items.every((item) => item.isSelected)
+      })
     },
   },
 }
@@ -778,5 +779,8 @@ export default {
 <style scoped>
 .checkbox-red:checked {
   accent-color: #dc2626;
+}
+.checkout-bar {
+  transition: bottom 0.2s ease;
 }
 </style>
