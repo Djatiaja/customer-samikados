@@ -4,28 +4,30 @@
     <HeaderAfterLogin />
 
     <!-- Order Details Section -->
-    <main class="container mx-auto p-6 bg-white rounded-lg shadow-md mt-6 mb-16 w-3/4">
-      <div class="flex items-center justify-between mb-6 relative">
+    <main
+      class="container mx-auto p-4 sm:p-6 bg-white rounded-lg shadow-md mt-4 sm:mt-6 mb-16 w-full sm:w-3/4"
+    >
+      <div class="flex items-center justify-between mb-4 sm:mb-6 relative">
         <router-link
           to="/orders"
-          class="absolute left-0 text-black text-3xl font-semibold hover:text-gray-600 transition-colors duration-200"
+          class="absolute left-0 text-black text-2xl sm:text-3xl font-semibold hover:text-gray-600 transition-colors duration-200"
           >←</router-link
         >
-        <h1 class="text-2xl font-semibold mx-auto text-gray-800">Detail Pesanan</h1>
+        <h1 class="text-xl sm:text-2xl font-semibold mx-auto text-gray-800">Detail Pesanan</h1>
       </div>
 
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-8">
         <div
-          class="inline-block w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3"
+          class="inline-block w-6 h-6 sm:w-8 sm:h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3"
         ></div>
-        <p class="text-lg text-gray-600">Memuat detail pesanan...</p>
+        <p class="text-base sm:text-lg text-gray-600">Memuat detail pesanan...</p>
       </div>
 
       <!-- Error State -->
       <div v-if="error" class="text-center py-8">
         <div class="bg-red-50 border border-red-200 rounded-lg p-4 inline-block">
-          <p class="text-lg text-red-600">{{ error }}</p>
+          <p class="text-base sm:text-lg text-red-600">{{ error }}</p>
         </div>
       </div>
 
@@ -33,17 +35,17 @@
       <div v-if="order && !loading" class="space-y-6">
         <!-- Order Status & Payment Status -->
         <div
-          class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
-          <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <div class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></div>
             Status Pesanan
           </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Status Pesanan</p>
               <span
-                class="inline-flex px-3 py-1 rounded-full text-sm font-semibold"
+                class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold"
                 :class="getOrderStatusClass(order.order_status.name)"
               >
                 {{ order.order_status.name }}
@@ -52,7 +54,7 @@
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Status Pembayaran</p>
               <span
-                class="inline-flex px-3 py-1 rounded-full text-sm font-semibold"
+                class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold"
                 :class="getPaymentStatusClass(getPaymentStatus(order.order_status.name))"
               >
                 {{ getPaymentStatusText(getPaymentStatus(order.order_status.name)) }}
@@ -63,13 +65,13 @@
 
         <!-- Order Info -->
         <div
-          class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
-          <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <div class="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
             Informasi Pesanan
           </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">ID Pesanan</p>
               <p class="text-base font-semibold text-black">{{ order.id }}</p>
@@ -78,11 +80,11 @@
               <p class="text-sm text-gray-600 font-medium">Tanggal Pembuatan</p>
               <p class="text-base font-semibold text-black">{{ formatDate(order.created_at) }}</p>
             </div>
-            <div class="space-y-1 md:col-span-2">
+            <div class="space-y-1 sm:col-span-2">
               <p class="text-sm text-gray-600 font-medium">Alamat Pengiriman</p>
               <p class="text-base font-semibold text-black leading-relaxed">{{ order.address }}</p>
             </div>
-            <div class="space-y-1 md:col-span-2">
+            <div class="space-y-1 sm:col-span-2">
               <p class="text-sm text-gray-600 font-medium">Catatan Tambahan</p>
               <p class="text-base font-semibold text-black">{{ order.additional_info || '-' }}</p>
             </div>
@@ -91,9 +93,9 @@
 
         <!-- Seller Info -->
         <div
-          class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
-          <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <div class="w-2 h-2 bg-teal-500 rounded-full mr-3"></div>
             Informasi Penjual
           </h2>
@@ -103,24 +105,23 @@
                 order.seller.user.photo_url || 'https://placehold.co/64x64/e2e8f0/64748b?text=👤'
               "
               alt="Seller Avatar"
-              class="w-16 h-16 object-cover rounded-full"
+              class="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-full"
             />
             <div>
               <p class="text-base font-semibold text-gray-800">{{ order.seller.name }}</p>
-              <p class="text-sm text-gray-600">ID Penjual: {{ order.seller.id }}</p>
             </div>
           </div>
         </div>
 
         <!-- Shipping Info -->
         <div
-          class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
-          <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <div class="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
             Informasi Pengiriman
           </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Jasa Pengiriman</p>
               <p class="text-base font-semibold text-black">{{ order.shipping_name }}</p>
@@ -154,9 +155,9 @@
 
         <!-- Order Items -->
         <div
-          class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
-          <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <div class="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
             Daftar Produk
           </h2>
@@ -164,20 +165,20 @@
             <div
               v-for="item in order.order_detail"
               :key="item.id"
-              class="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+              class="flex items-start p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
             >
               <img
                 :src="
                   item.product.thumbnail_url || 'https://placehold.co/80x80/e2e8f0/64748b?text=📦'
                 "
                 alt="Product Image"
-                class="w-20 h-20 object-contain rounded-lg flex-shrink-0"
+                class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-lg flex-shrink-0"
               />
-              <div class="ml-4 flex-1">
-                <p class="text-lg font-semibold text-gray-800 mb-2">
+              <div class="ml-3 sm:ml-4 flex-1">
+                <p class="text-base sm:text-lg font-semibold text-gray-800 mb-2">
                   {{ item.product.name }}
                 </p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3">
                   <div>
                     <p class="text-sm text-gray-600">
                       <strong>Varian:</strong> {{ item.product_variant.name }}
@@ -185,14 +186,9 @@
                     <p class="text-sm text-gray-600">
                       <strong>Finishing:</strong> {{ item.product_finishing.name }}
                     </p>
-                    <div class="flex items-center space-x-2 mt-1">
-                      <span class="text-sm text-gray-600"><strong>Warna:</strong></span>
-                      <div
-                        class="w-4 h-4 rounded-full border border-gray-300"
-                        :style="{ backgroundColor: item.product_finishing.finishing.color_code }"
-                        :title="item.product_finishing.finishing.name"
-                      ></div>
-                    </div>
+                    <p class="text-sm text-gray-600">
+                      <strong>Warna:</strong> {{ item.product_finishing.finishing.name }}
+                    </p>
                   </div>
                   <div>
                     <p class="text-sm text-gray-600">
@@ -201,7 +197,7 @@
                     <p class="text-sm text-gray-600">
                       <strong>Berat Total:</strong> {{ item.subtotal_weight }} kg
                     </p>
-                    <p class="text-lg font-semibold text-gray-800 mt-1">
+                    <p class="text-base sm:text-lg font-semibold text-gray-800 mt-1">
                       {{ formatCurrency(item.subtotal_price) }}
                     </p>
                   </div>
@@ -216,9 +212,9 @@
 
         <!-- Order Summary -->
         <div
-          class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
-          <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <div class="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
             Ringkasan Pembayaran
           </h2>
@@ -240,26 +236,28 @@
               </p>
             </div>
             <div class="flex justify-between py-3 bg-gray-50 rounded-lg px-4 mt-4">
-              <p class="text-lg font-bold text-gray-800">Total</p>
-              <p class="text-lg font-bold text-black">{{ formatCurrency(order.grand_total) }}</p>
+              <p class="text-base sm:text-lg font-bold text-gray-800">Total</p>
+              <p class="text-base sm:text-lg font-bold text-black">
+                {{ formatCurrency(order.grand_total) }}
+              </p>
             </div>
           </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center pt-4 sm:pt-6">
           <!-- Belum Dibayar -->
           <template v-if="isUnpaidStatus(order.order_status.name)">
             <button
               @click="processPayment"
-              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
             >
               <font-awesome-icon :icon="['fas', 'credit-card']" />
               <span>Bayar Sekarang</span>
             </button>
             <button
               @click="cancelOrder"
-              class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
             >
               <font-awesome-icon :icon="['fas', 'times']" />
               <span>Batalkan Pesanan</span>
@@ -276,7 +274,7 @@
           >
             <button
               @click="completeOrder"
-              class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
             >
               <font-awesome-icon :icon="['fas', 'check']" />
               <span>Selesaikan Pesanan</span>
@@ -292,7 +290,7 @@
           >
             <div class="text-center">
               <span
-                class="bg-green-100 text-green-800 py-3 px-6 rounded-lg font-semibold inline-flex items-center space-x-2"
+                class="bg-green-100 text-green-800 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold inline-flex items-center space-x-2"
               >
                 <font-awesome-icon :icon="['fas', 'check-circle']" />
                 <span>Pesanan Telah Selesai</span>
@@ -309,7 +307,7 @@
           >
             <div class="text-center">
               <span
-                class="bg-red-100 text-red-800 py-3 px-6 rounded-lg font-semibold inline-flex items-center space-x-2"
+                class="bg-red-100 text-red-800 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold inline-flex items-center space-x-2"
               >
                 <font-awesome-icon :icon="['fas', 'times-circle']" />
                 <span>Pesanan Dibatalkan</span>
@@ -320,7 +318,9 @@
           <!-- Status lainnya -->
           <template v-else>
             <div class="text-center">
-              <span class="bg-gray-100 text-gray-600 py-3 px-6 rounded-lg font-semibold">
+              <span
+                class="bg-gray-100 text-gray-600 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold"
+              >
                 Tidak ada aksi yang tersedia
               </span>
             </div>
@@ -393,13 +393,11 @@ export default {
       }
     },
 
-    // Fungsi baru untuk mengecek apakah status pesanan masih "Belum Dibayar"
     isUnpaidStatus(orderStatus) {
       const unpaidStatuses = ['belum dibayar', 'unpaid', 'pending']
       return unpaidStatuses.includes(orderStatus.toLowerCase())
     },
 
-    // Fungsi baru untuk mendapatkan status pembayaran berdasarkan status pesanan
     getPaymentStatus(orderStatus) {
       if (this.isUnpaidStatus(orderStatus)) {
         return 'unpaid'
@@ -415,6 +413,7 @@ export default {
           icon: 'error',
           timer: 2000,
           showConfirmButton: false,
+          confirmButtonColor: '#2563EB', // Blue-600
         })
         return
       }
@@ -428,6 +427,7 @@ export default {
             icon: 'success',
             timer: 1500,
             showConfirmButton: false,
+            confirmButtonColor: '#2563EB', // Blue-600
           })
         })
         .catch((err) => {
@@ -438,6 +438,7 @@ export default {
             icon: 'error',
             timer: 2000,
             showConfirmButton: false,
+            confirmButtonColor: '#2563EB', // Blue-600
           })
         })
     },
@@ -448,15 +449,14 @@ export default {
         text: `Anda akan melakukan pembayaran sebesar ${this.formatCurrency(this.order.grand_total)}`,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#3B82F6',
-        cancelButtonColor: '#6B7280',
+        confirmButtonColor: '#2563EB', // Blue-600
+        cancelButtonColor: '#6B7280', // Gray-500
         confirmButtonText: 'Bayar Sekarang',
         cancelButtonText: 'Batal',
       })
 
       if (result.isConfirmed) {
         try {
-          // Implementasi proses pembayaran
           Swal.fire({
             title: 'Memproses Pembayaran...',
             text: 'Silakan tunggu sebentar',
@@ -468,7 +468,6 @@ export default {
             },
           })
 
-          // Simulate payment process
           setTimeout(() => {
             Swal.fire({
               title: 'Pembayaran Berhasil!',
@@ -476,14 +475,16 @@ export default {
               icon: 'success',
               timer: 2000,
               showConfirmButton: false,
+              confirmButtonColor: '#2563EB', // Blue-600
             })
-            this.fetchOrderDetails() // Refresh data
+            this.fetchOrderDetails()
           }, 2000)
         } catch (error) {
           Swal.fire({
             title: 'Pembayaran Gagal',
             text: 'Terjadi kesalahan saat memproses pembayaran',
             icon: 'error',
+            confirmButtonColor: '#2563EB', // Blue-600
           })
         }
       }
@@ -495,8 +496,8 @@ export default {
         text: 'Apakah Anda yakin ingin membatalkan pesanan ini?',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
+        confirmButtonColor: '#DC2626', // Red-600
+        cancelButtonColor: '#6B7280', // Gray-500
         confirmButtonText: 'Ya, Batalkan',
         cancelButtonText: 'Tidak',
       })
@@ -504,24 +505,21 @@ export default {
       if (result.isConfirmed) {
         try {
           const token = localStorage.getItem('auth_token')
-          // API call to cancel order
-          // await axios.patch(`${this.baseUrl}/customer/orders/${this.order.id}/cancel`, {}, {
-          //   headers: { Authorization: `Bearer ${token}` }
-          // })
-
           Swal.fire({
             title: 'Pesanan Dibatalkan',
             text: 'Pesanan Anda telah berhasil dibatalkan',
             icon: 'success',
             timer: 2000,
             showConfirmButton: false,
+            confirmButtonColor: '#2563EB', // Blue-600
           })
-          this.fetchOrderDetails() // Refresh data
+          this.fetchOrderDetails()
         } catch (error) {
           Swal.fire({
             title: 'Gagal Membatalkan',
             text: 'Terjadi kesalahan saat membatalkan pesanan',
             icon: 'error',
+            confirmButtonColor: '#2563EB', // Blue-600
           })
         }
       }
@@ -533,8 +531,8 @@ export default {
         text: 'Apakah Anda sudah menerima pesanan dengan baik?',
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#10B981',
-        cancelButtonColor: '#6B7280',
+        confirmButtonColor: '#16A34A', // Green-600
+        cancelButtonColor: '#6B7280', // Gray-500
         confirmButtonText: 'Ya, Selesaikan',
         cancelButtonText: 'Belum',
       })
@@ -542,24 +540,21 @@ export default {
       if (result.isConfirmed) {
         try {
           const token = localStorage.getItem('auth_token')
-          // API call to complete order
-          // await axios.patch(`${this.baseUrl}/customer/orders/${this.order.id}/complete`, {}, {
-          //   headers: { Authorization: `Bearer ${token}` }
-          // })
-
           Swal.fire({
             title: 'Pesanan Selesai!',
             text: 'Terima kasih telah berbelanja dengan kami',
             icon: 'success',
             timer: 2000,
             showConfirmButton: false,
+            confirmButtonColor: '#2563EB', // Blue-600
           })
-          this.fetchOrderDetails() // Refresh data
+          this.fetchOrderDetails()
         } catch (error) {
           Swal.fire({
             title: 'Gagal Menyelesaikan',
             text: 'Terjadi kesalahan saat menyelesaikan pesanan',
             icon: 'error',
+            confirmButtonColor: '#2563EB', // Blue-600
           })
         }
       }
@@ -657,5 +652,11 @@ export default {
 </script>
 
 <style scoped>
-/* Minimal custom styles */
+/* Tailwind responsive adjustments */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
 </style>
