@@ -66,7 +66,7 @@
         class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md flex items-center justify-between"
         @click="$emit('track', order.id)"
       >
-        <span>Lacak Pesanan</span>
+        <span>Detail Pesanan</span>
         <span class="text-lg">›</span>
       </button>
     </div>
@@ -95,12 +95,12 @@
           Batalkan
         </button>
       </template>
-      <template v-else-if="order.status === 'Masuk'">
+      <template v-else-if="order.status === 'Masuk' || order.status === 'Belum Dibayar'">
         <button
           class="bg-gray-100 text-red-600 px-4 py-2 rounded-md border border-red-600 cursor-not-allowed w-32 text-sm"
           disabled
         >
-          Batalkan
+          {{ order.status === 'Belum Dibayar' ? 'Belum Dibayar' : 'Batalkan' }}
         </button>
       </template>
       <template v-else-if="order.status === 'batal'">
@@ -109,14 +109,6 @@
           disabled
         >
           Dibatalkan
-        </button>
-      </template>
-      <template v-else-if="order.status === 'Belum Dibayar'">
-        <button
-          class="bg-gray-100 text-red-600 px-4 py-2 rounded-md border border-red-600 cursor-not-allowed w-32 text-sm"
-          disabled
-        >
-          Belum Dibayar
         </button>
       </template>
     </div>
@@ -153,8 +145,15 @@ export default {
       return statusMap[this.order.status] || this.order.status
     },
     getStatusColor() {
+      const colorMap = {
+        SeaShell: '#3B82F6', // Masuk -> Blue (blue-500)
+        Red: '#F59E0B', // Diproses -> Yellow (yellow-500)
+        PaleVioletRed: '#10B981', // selesai -> Green (green-500)
+        Moccasin: '#EF4444', // batal -> Red (red-500)
+        BurlyWood: '#6B7280', // Belum Dibayar -> Gray (gray-500)
+      }
       const status = this.orderStatuses.find((s) => s.name === this.order.status)
-      return status ? status.color : '#E5E7EB' // Fallback to gray-200
+      return status && status.color ? colorMap[status.color] || status.color : '#E5E7EB'
     },
     getStatusTitle() {
       if (this.order.status === 'selesai') {

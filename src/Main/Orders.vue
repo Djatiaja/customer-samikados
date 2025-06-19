@@ -23,6 +23,7 @@
           v-for="order in filteredOrders"
           :key="order.id"
           :order="order"
+          :order-statuses="orderStatuses"
           @cancel="showCancelModal(order.id)"
           @track="goToTrackOrder(order.id)"
           @review="goToReviewOrder(order.id)"
@@ -129,7 +130,7 @@ export default {
             status: order.order_status.name,
             shopName: order.seller.name,
             shopIcon: order.seller.user.photo_url || 'https://placehold.co/50x50',
-            deliveryDate: order.shipping_airway_bill ? order.shipping_airway_bill : 'N/A',
+            deliveryDate: order.shipping_airway_bill || 'N/A',
             statusMessage: `Pesanan Anda ${order.order_status.name}`,
             products: order.order_detail.map((detail) => ({
               productImage: detail.product.thumbnail_url || 'https://placehold.co/200x200',
@@ -139,7 +140,7 @@ export default {
               finishing: detail.product_finishing?.name || 'Tanpa Finishing',
             })),
             notes: order.additional_info || 'Tidak ada catatan',
-            size: 'N/A', // Size not available in API
+            totalQuantity: order.order_detail.reduce((sum, detail) => sum + detail.quantity, 0),
             price: order.grand_total,
           }))
         }
@@ -177,8 +178,8 @@ export default {
         await axios.post(`${baseUrl}/customer/orders/${this.currentOrderId}/cancel`)
         const orderIndex = this.orders.findIndex((order) => order.id === this.currentOrderId)
         if (orderIndex !== -1) {
-          this.orders[orderIndex].status = 'pembatalan'
-          this.orders[orderIndex].statusMessage = 'Menunggu Konfirmasi Pembatalan dari Seller'
+          this.orders[orderIndex].status = 'batal'
+          this.orders[orderIndex].statusMessage = 'Pesanan Dibatalkan'
         }
         this.showProcessingModal()
       } catch (error) {
@@ -205,7 +206,8 @@ export default {
       })
     },
     goToTrackOrder(orderId) {
-      this.$router.push(`/track-order/${orderId}`)
+      localStorage.setItem('order_id', orderId) // Store order_id in localStorage
+      this.$router.push(`/track-order`)
     },
     goToReviewOrder(orderId) {
       this.$router.push(`/review-order/${orderId}`)
