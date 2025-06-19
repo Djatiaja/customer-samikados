@@ -158,7 +158,7 @@
           class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
         >
           <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
-            <div class="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+            <div class="w-2 h-2 bg-orange-600 rounded-full mr-3"></div>
             Daftar Produk
           </h2>
           <div class="space-y-4">
@@ -176,26 +176,23 @@
               />
               <div class="ml-3 sm:ml-4 flex-1">
                 <p class="text-base sm:text-lg font-semibold text-gray-800 mb-2">
-                  {{ item.product.name }}
+                  {{ item.product.name || 'Produk Tidak Diketahui' }}
                 </p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3">
                   <div>
                     <p class="text-sm text-gray-600">
-                      <strong>Varian:</strong> {{ item.product_variant.name }}
+                      <strong>Varian:</strong> {{ item.product_variant?.name || '-' }}
                     </p>
                     <p class="text-sm text-gray-600">
-                      <strong>Finishing:</strong> {{ item.product_finishing.name }}
-                    </p>
-                    <p class="text-sm text-gray-600">
-                      <strong>Warna:</strong> {{ item.product_finishing.finishing.name }}
+                      <strong>Finishing:</strong> {{ item.product_finishing?.name || '-' }}
                     </p>
                   </div>
                   <div>
                     <p class="text-sm text-gray-600">
-                      <strong>Jumlah:</strong> {{ item.quantity }}
+                      <strong>Jumlah:</strong> {{ item.quantity || 0 }}
                     </p>
                     <p class="text-sm text-gray-600">
-                      <strong>Berat Total:</strong> {{ item.subtotal_weight }} kg
+                      <strong>Berat Total:</strong> {{ item.subtotal_weight || 0 }} kg
                     </p>
                     <p class="text-base sm:text-lg font-semibold text-gray-800 mt-1">
                       {{ formatCurrency(item.subtotal_price) }}
@@ -302,7 +299,8 @@
           <template
             v-else-if="
               order.order_status.name.toLowerCase() === 'cancelled' ||
-              order.order_status.name.toLowerCase() === 'dibatalkan'
+              order.order_status.name.toLowerCase() === 'dibatalkan' ||
+              order.order_status.name.toLowerCase() === 'batal'
             "
           >
             <div class="text-center">
@@ -377,11 +375,21 @@ export default {
           },
         })
 
-        console.log('API Response:', response.data)
-
         if (response.data.status === 'success') {
           this.order = response.data.data
-          console.log('Order data:', this.order)
+          // Normalize order_detail to prevent null issues
+          this.order.order_detail = this.order.order_detail.map(item => ({
+            ...item,
+            product: item.product || { name: 'Produk Tidak Diketahui', thumbnail_url: null },
+            product_finishing: item.product_finishing || {
+              name: '-',
+              finishing: { name: '-', color_code: '-' },
+            },
+            product_variant: item.product_variant || { name: '-' },
+            quantity: item.quantity || 0,
+            subtotal_weight: item.subtotal_weight || 0,
+            subtotal_price: item.subtotal_price || 0,
+          }))
         } else {
           throw new Error(response.data.message || 'Gagal memuat detail pesanan.')
         }
@@ -406,14 +414,14 @@ export default {
     },
 
     copyTrackingNumber() {
-      if (!this.order || !this.order.shipping_airway_bill) {
+      if (!this.order?.shipping_airway_bill) {
         Swal.fire({
           title: 'Gagal',
           text: 'Nomor resi tidak tersedia.',
           icon: 'error',
           timer: 2000,
           showConfirmButton: false,
-          confirmButtonColor: '#2563EB', // Blue-600
+          confirmButtonColor: '#2563EB',
         })
         return
       }
@@ -423,11 +431,11 @@ export default {
         .then(() => {
           Swal.fire({
             title: 'Berhasil!',
-            text: 'Nomor resi berhasil disalin',
+            text: `Nomor resi ${this.order.shipping_airway_bill} berhasil disalin`,
             icon: 'success',
             timer: 1500,
             showConfirmButton: false,
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
         })
         .catch((err) => {
@@ -438,7 +446,7 @@ export default {
             icon: 'error',
             timer: 2000,
             showConfirmButton: false,
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
         })
     },
@@ -449,8 +457,8 @@ export default {
         text: `Anda akan melakukan pembayaran sebesar ${this.formatCurrency(this.order.grand_total)}`,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#2563EB', // Blue-600
-        cancelButtonColor: '#6B7280', // Gray-500
+        confirmButtonColor: '#2563EB',
+        cancelButtonColor: '#6B7280',
         confirmButtonText: 'Bayar Sekarang',
         cancelButtonText: 'Batal',
       })
@@ -468,23 +476,79 @@ export default {
             },
           })
 
-          setTimeout(() => {
-            Swal.fire({
-              title: 'Pembayaran Berhasil!',
-              text: 'Pesanan Anda sedang diproses',
-              icon: 'success',
-              timer: 2000,
-              showConfirmButton: false,
-              confirmButtonColor: '#2563EB', // Blue-600
-            })
-            this.fetchOrderDetails()
-          }, 2000)
+          const orderId = localStorage.getItem('order_id')
+          const token = localStorage.getItem('auth_token')
+
+          // Call the payment endpoint to get snap_token
+          const response = await axios.post(
+            `${this.baseUrl}/customer/payment/create/${orderId}`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+
+          if (response.status !== 200) {
+            console.error('Error fetching snap token:', response.status)
+            throw new Error(response.data.message || 'Gagal mendapatkan snap token.')
+          }
+
+          const { snap_token } = response.data.data
+
+          // Close the loading Swal
+          Swal.close()
+
+          // Initialize Midtrans Snap pop-up
+          window.snap.pay(snap_token, {
+            onSuccess: async (result) => {
+              Swal.fire({
+                title: 'Pembayaran Berhasil!',
+                text: 'Pesanan Anda sedang diproses.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                confirmButtonColor: '#2563EB',
+              })
+              // Refresh order details to update status
+              await this.fetchOrderDetails()
+            },
+            onPending: (result) => {
+              Swal.fire({
+                title: 'Pembayaran Menunggu',
+                text: 'Pembayaran Anda sedang diproses. Silakan selesaikan pembayaran sesuai instruksi.',
+                icon: 'info',
+                timer: 3000,
+                showConfirmButton: false,
+                confirmButtonColor: '#2563EB',
+              })
+              // Optionally refresh order details
+              this.fetchOrderDetails()
+            },
+            onError: (result) => {
+              Swal.fire({
+                title: 'Pembayaran Gagal',
+                text: 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.',
+                icon: 'error',
+                confirmButtonColor: '#2563EB',
+              })
+            },
+            onClose: () => {
+              Swal.fire({
+                title: 'Pembayaran Dibatalkan',
+                text: 'Anda menutup jendela pembayaran. Silakan coba lagi jika ingin melanjutkan.',
+                icon: 'warning',
+                confirmButtonColor: '#2563EB',
+              })
+            },
+          })
         } catch (error) {
           Swal.fire({
             title: 'Pembayaran Gagal',
-            text: 'Terjadi kesalahan saat memproses pembayaran',
+            text: error.message || 'Terjadi kesalahan saat memproses pembayaran.',
             icon: 'error',
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
         }
       }
@@ -496,8 +560,8 @@ export default {
         text: 'Apakah Anda yakin ingin membatalkan pesanan ini?',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#DC2626', // Red-600
-        cancelButtonColor: '#6B7280', // Gray-500
+        confirmButtonColor: '#DC2626',
+        cancelButtonColor: '#6B7280',
         confirmButtonText: 'Ya, Batalkan',
         cancelButtonText: 'Tidak',
       })
@@ -505,13 +569,21 @@ export default {
       if (result.isConfirmed) {
         try {
           const token = localStorage.getItem('auth_token')
+          // Assuming there's a cancel order endpoint
+          await axios.post(
+            `${this.baseUrl}/customer/orders/${this.order.id}/cancel`,
+            {},
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          )
           Swal.fire({
             title: 'Pesanan Dibatalkan',
             text: 'Pesanan Anda telah berhasil dibatalkan',
             icon: 'success',
             timer: 2000,
             showConfirmButton: false,
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
           this.fetchOrderDetails()
         } catch (error) {
@@ -519,7 +591,7 @@ export default {
             title: 'Gagal Membatalkan',
             text: 'Terjadi kesalahan saat membatalkan pesanan',
             icon: 'error',
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
         }
       }
@@ -531,8 +603,8 @@ export default {
         text: 'Apakah Anda sudah menerima pesanan dengan baik?',
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#16A34A', // Green-600
-        cancelButtonColor: '#6B7280', // Gray-500
+        confirmButtonColor: '#16A34A',
+        cancelButtonColor: '#6B7280',
         confirmButtonText: 'Ya, Selesaikan',
         cancelButtonText: 'Belum',
       })
@@ -540,13 +612,21 @@ export default {
       if (result.isConfirmed) {
         try {
           const token = localStorage.getItem('auth_token')
+          // Assuming there's a complete order endpoint
+          await axios.post(
+            `${this.baseUrl}/customer/orders/${this.order.id}/complete`,
+            {},
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          )
           Swal.fire({
             title: 'Pesanan Selesai!',
             text: 'Terima kasih telah berbelanja dengan kami',
             icon: 'success',
             timer: 2000,
             showConfirmButton: false,
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
           this.fetchOrderDetails()
         } catch (error) {
@@ -554,7 +634,7 @@ export default {
             title: 'Gagal Menyelesaikan',
             text: 'Terjadi kesalahan saat menyelesaikan pesanan',
             icon: 'error',
-            confirmButtonColor: '#2563EB', // Blue-600
+            confirmButtonColor: '#2563EB',
           })
         }
       }
@@ -580,6 +660,7 @@ export default {
           return 'bg-green-100 text-green-800'
         case 'dibatalkan':
         case 'cancelled':
+        case 'batal':
           return 'bg-red-100 text-red-800'
         default:
           return 'bg-gray-100 text-gray-800'
@@ -640,6 +721,13 @@ export default {
   },
 
   created() {
+    // Load Midtrans Snap script dynamically
+    const script = document.createElement('script')
+    script.src = 'https://app.sandbox.midtrans.com/snap/snap.js'
+    script.setAttribute('data-client-key', import.meta.env.VITE_MIDTRANS_CLIENT_KEY)
+    document.head.appendChild(script)
+
+    // Fetch order details
     this.fetchOrderDetails()
   },
 
