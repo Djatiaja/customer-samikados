@@ -84,7 +84,7 @@
     <!-- Action Buttons -->
     <div class="flex flex-wrap gap-4 mt-4 items-center">
       <button class="text-red-600 p-3" @click="$emit('toggle-bookmark')">
-        <i class="fa fa-bookmark text-lg sm:text-3xl"></i>
+        <i class="fas fa-shopping-cart text-lg sm:text-3xl"></i>
       </button>
       <button class="text-red-600 p-3" @click="$emit('open-chat')">
         <i class="fa-solid fa-message text-lg sm:text-3xl"></i>
@@ -94,9 +94,6 @@
         @click="$emit('place-order')"
       >
         Pesan Sekarang
-      </button>
-      <button class="text-red-600 p-3" @click="$emit('report-product')">
-        <i class="fas fa-flag text-lg sm:text-3xl"></i>
       </button>
     </div>
   </div>

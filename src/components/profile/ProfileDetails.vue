@@ -1,4 +1,3 @@
-```vue
 <template>
   <div
     class="w-full md:w-3/4 bg-white p-6 rounded-lg shadow-lg flex flex-col items-center justify-center"
@@ -9,26 +8,30 @@
       <div class="bg-gray-100 p-5 mb-6 rounded-lg">{{ user.email }}</div>
       <div class="bg-gray-100 p-5 mb-6 rounded-lg">{{ formatPhoneNumber(user.no_telp) }}</div>
 
-      <!-- Tampilin alamat default -->
+      <!-- Tampilin alamat default atau alamat pertama -->
       <div
         v-if="defaultAddress"
         class="bg-gray-100 p-5 mb-2 rounded-lg flex justify-between items-center"
       >
         <div>
-          <span class="font-semibold">{{ defaultAddress.name }}</span
+          <span class="font-semibold">{{ defaultAddress.label }}</span
           >: {{ defaultAddress.address }}
-          <span class="ml-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">Utama</span>
+          <span
+            v-if="defaultAddress.is_default"
+            class="ml-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full"
+            >Utama</span
+          >
         </div>
         <div class="flex space-x-2">
           <button
-            @click="$emit('edit-address', defaultAddressIndex)"
+            @click="handleEditAddress(defaultAddress)"
             class="text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded"
           >
             Edit
           </button>
           <button
             v-if="user.addresses.length > 1"
-            @click="$emit('confirm-delete-address', defaultAddressIndex)"
+            @click="handleDeleteAddress(defaultAddress)"
             class="text-xs bg-red-100 hover:bg-red-200 px-2 py-1 rounded"
           >
             Hapus
@@ -79,10 +82,15 @@ export default {
   },
   computed: {
     defaultAddress() {
-      return this.user.addresses.find((address) => address.is_default) || null
+      // Cari alamat dengan is_default: true, kalau nggak ada, ambil alamat pertama
+      return (
+        this.user.addresses.find((address) => address.is_default) || this.user.addresses[0] || null
+      )
     },
     defaultAddressIndex() {
-      return this.user.addresses.findIndex((address) => address.is_default)
+      // Index untuk alamat default atau alamat pertama
+      const defaultIndex = this.user.addresses.findIndex((address) => address.is_default)
+      return defaultIndex !== -1 ? defaultIndex : 0
     },
   },
   methods: {
@@ -90,7 +98,18 @@ export default {
       console.log('Ngeklik tombol Tambah Alamat Baru, emit open-add-address-modal')
       this.$emit('open-add-address-modal')
     },
+    handleEditAddress(address) {
+      console.log('Emitting edit-address:', address)
+      this.$emit('edit-address', address)
+    },
+    handleDeleteAddress(address) {
+      console.log('Emitting confirm-delete-address:', {
+        id: address.id,
+        index: this.defaultAddressIndex,
+        remainingAddresses: this.user.addresses.length,
+      })
+      this.$emit('confirm-delete-address', { id: address.id, index: this.defaultAddressIndex })
+    },
   },
 }
 </script>
-```

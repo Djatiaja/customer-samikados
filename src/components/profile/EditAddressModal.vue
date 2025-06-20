@@ -13,30 +13,28 @@ export default {
       type: Boolean,
       default: false,
     },
-    user: {
+    address: {
       type: Object,
-      required: true,
-    },
-    index: {
-      type: Number,
       required: true,
     },
   },
   setup(props, { emit }) {
     const base_url = import.meta.env.VITE_API_BASE_URL
     const form = ref({
-      id: props.user.addresses[props.index]?.id || null,
-      label: props.user.addresses[props.index]?.label || '',
-      address: props.user.addresses[props.index]?.address || '',
-      phone: props.user.addresses[props.index]?.phone || '',
-      is_default: props.user.addresses[props.index]?.is_default || false,
+      id: props.address?.id || null,
+      label: props.address?.label || '',
+      address: props.address?.address || '',
+      phone: props.address?.phone || '',
+      is_default: props.address?.is_default || false,
     })
-    const locationSearch = ref(props.user.addresses[props.index]?.label || '')
+    const locationSearch = ref(props.address?.label || '')
     const locations = ref([])
     const selectedLocation = ref(null)
     const showLocationDropdown = ref(false)
     const isLoadingLocation = ref(false)
     const locationError = ref('')
+
+    console.log('EditAddressModal props.address:', props.address) // Debug
 
     const searchLocation = async () => {
       if (!locationSearch.value.trim()) {
@@ -191,7 +189,6 @@ export default {
           `
           document.head.appendChild(styleElement)
 
-          // Event listeners
           const locationSearchInput = document.getElementById('locationSearchInput')
           const searchButton = document.getElementById('searchButton')
           const searchIcon = document.getElementById('searchIcon')
@@ -202,12 +199,10 @@ export default {
           const selectedLocationText = document.getElementById('selectedLocationText')
           const closeDropdownBtn = document.getElementById('closeDropdownBtn')
 
-          // Update location search value
           locationSearchInput.addEventListener('input', (e) => {
             locationSearch.value = e.target.value
           })
 
-          // Search button click handler
           searchButton.addEventListener('click', async () => {
             const searchValue = locationSearchInput.value.trim()
 
@@ -217,7 +212,6 @@ export default {
               return
             }
 
-            // Show loading
             searchIcon.className = 'fas fa-spinner fa-spin'
             searchButton.disabled = true
             locationError.style.display = 'none'
@@ -233,7 +227,6 @@ export default {
                   locationError.style.display = 'block'
                   locationDropdown.style.display = 'none'
                 } else {
-                  // Populate dropdown
                   locationResults.innerHTML = `
                     <div class="p-4">
                       <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN</div>
@@ -253,7 +246,6 @@ export default {
                     </div>
                   `
 
-                  // Add click handlers for location items
                   document.querySelectorAll('.location-item').forEach((item) => {
                     item.addEventListener('click', () => {
                       const location = JSON.parse(item.dataset.location)
@@ -280,18 +272,15 @@ export default {
               locationDropdown.style.display = 'none'
               console.error('Location search error:', error)
             } finally {
-              // Reset loading
               searchIcon.className = 'fas fa-search'
               searchButton.disabled = false
             }
           })
 
-          // Close dropdown handler
           closeDropdownBtn.addEventListener('click', () => {
             locationDropdown.style.display = 'none'
           })
 
-          // Form input handlers
           document.getElementById('address').addEventListener('input', (e) => {
             form.value.address = e.target.value
           })
@@ -307,16 +296,26 @@ export default {
           const phone = document.getElementById('phone').value
           const is_default = document.getElementById('is_default').checked
 
+          console.log('preConfirm form:', { label: form.value.label, address, phone, is_default }) // Debug
+
           if (!form.value.label) {
             Swal.showValidationMessage('Alamat wajib dipilih dari hasil pencarian')
+            console.log('Validation failed: label kosong')
             return false
           }
           if (!address || !phone) {
             Swal.showValidationMessage('Detail alamat dan no. penerima wajib diisi')
+            console.log('Validation failed: address atau phone kosong')
             return false
           }
           if (!/^\+?\d{10,13}$/.test(phone)) {
             Swal.showValidationMessage('No. telepon tidak valid')
+            console.log('Validation failed: phone tidak valid')
+            return false
+          }
+          if (!form.value.id) {
+            Swal.showValidationMessage('ID alamat tidak valid')
+            console.log('Validation failed: id kosong')
             return false
           }
 
@@ -331,16 +330,30 @@ export default {
       })
         .then((result) => {
           if (result.isConfirmed && result.value) {
-            const addressId = props.user.addresses[props.index].id
+            const addressId = result.value.id
 
-            // Prepare form data
+            if (!addressId) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'ID alamat tidak valid',
+                confirmButtonText: 'OK',
+                buttonsStyling: false,
+                customClass: {
+                  confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+                },
+              })
+              return
+            }
+
             const formData = new FormData()
             formData.append('label', result.value.label)
             formData.append('is_default', result.value.is_default ? 1 : 0)
             formData.append('address', result.value.address)
             formData.append('phone', result.value.phone)
 
-            // Update address using correct API endpoint
+            console.log('Sending to API:', { addressId, formData: Object.fromEntries(formData) }) // Debug
+
             axios
               .post(`${base_url}/customer/address/${addressId}`, formData, {
                 headers: {
@@ -350,7 +363,7 @@ export default {
               })
               .then((response) => {
                 if (response.data.status === 'success') {
-                  emit('update-address', props.index, {
+                  emit('update-address', {
                     id: addressId,
                     label: result.value.label,
                     address: result.value.address,
@@ -395,11 +408,11 @@ export default {
       (newVisible) => {
         if (newVisible) {
           form.value = {
-            id: props.user.addresses[props.index]?.id || null,
-            label: props.user.addresses[props.index]?.label || '',
-            address: props.user.addresses[props.index]?.address || '',
-            phone: props.user.addresses[props.index]?.phone || '',
-            is_default: props.user.addresses[props.index]?.is_default || false,
+            id: props.address?.id || null,
+            label: props.address?.label || '',
+            address: props.address?.address || '',
+            phone: props.address?.phone || '',
+            is_default: props.address?.is_default || false,
           }
           locationSearch.value = form.value.label
           selectedLocation.value = null

@@ -51,20 +51,22 @@ const router = createRouter({
 
 // Middleware untuk autentikasi
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('token') // Cek apakah token ada
-  console.log('Navigating to:', to.path, 'Authenticated:', isAuthenticated) // Debug
+  const token = localStorage.getItem('token')
+  const isAuthenticated = token && token.trim() !== '' && token !== 'null' && token !== 'undefined'
 
-  // Jika rute memerlukan autentikasi dan belum login
+  console.log('Navigating to:', to.path)
+  console.log('Token exists:', !!token)
+  console.log('Token value:', token)
+  console.log('Is Authenticated:', isAuthenticated)
+
   if (to.meta.requiresAuth && !isAuthenticated) {
     return next('/login')
   }
 
-  // Jika rute hanya untuk tamu (belum login) dan sudah login
   if (to.meta.requiresGuest && isAuthenticated) {
     return next('/home')
   }
 
-  // Lanjut ke rute tujuan
   next()
 })
 

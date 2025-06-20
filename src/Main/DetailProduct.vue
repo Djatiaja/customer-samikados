@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="flex flex-col min-h-screen" v-if="isLoaded">
     <HeaderBeforeLogin v-if="!isAuthenticated" />
@@ -12,6 +11,7 @@
             :size-options="sizeOptions"
             :finishing-options="finishingOptions"
             :total-price="totalPrice"
+            :is-adding-to-cart="isAddingToCart"
             v-model:note="note"
             v-model:selected-size="selectedSize"
             v-model:selected-finishing="selectedFinishing"
@@ -21,13 +21,12 @@
             @increase-quantity="increaseQuantity"
             @decrease-quantity="decreaseQuantity"
             @place-order="placeOrder"
+            @add-to-cart="addToCart"
             @open-chat="openChat"
-            @report-product="reportProduct"
             @toggle-bookmark="toggleBookmark"
           />
         </div>
         <StoreInfo />
-        <Reviews :reviews="reviews" />
       </main>
     </div>
     <AuthFooter />
@@ -48,7 +47,6 @@ import AuthFooter from '@/components/AuthFooter.vue'
 import ProductImages from '@/components/details-product/ProductImages.vue'
 import ProductDetails from '@/components/details-product/ProductDetails.vue'
 import StoreInfo from '@/components/details-product/StoreInfo.vue'
-import Reviews from '@/components/details-product/Reviews.vue'
 
 export default {
   components: {
@@ -58,14 +56,15 @@ export default {
     ProductImages,
     ProductDetails,
     StoreInfo,
-    Reviews,
   },
   setup() {
     const route = useRoute()
     const router = useRouter()
     const isLoaded = ref(false)
+    const isAddingToCart = ref(false)
     const isAuthenticated = computed(() => !!localStorage.getItem('token'))
     const product = reactive({
+      id: '',
       name: '',
       soldCount: '0',
       description: '',
@@ -80,33 +79,6 @@ export default {
     const isBookmarked = ref(false)
     const sizeOptions = ref([])
     const finishingOptions = ref([{ value: '0', label: 'Tanpa Finishing' }])
-    const reviews = ref([
-      {
-        id: 1,
-        user: 'Denada Ananda',
-        time: '15.49',
-        date: '23 Desember 2023',
-        rating: 5,
-        content:
-          'Bahan yang digunakan terasa kokoh dan tahan lama, sehingga saya tidak khawatir tentang kerusakan setelah penggunaan berulang. Ujung pin yang runcing memudahkan untuk menembus berbagai jenis kain, dan saya sangat menghargai kenyamanan saat menggunakannya.',
-        profilePic: 'https://placehold.co/50x50',
-      },
-      {
-        id: 2,
-        user: 'Denada Ananda',
-        time: '15.49',
-        date: '23 Desember 2023',
-        rating: 5,
-        content:
-          'Bahan yang digunakan terasa kokoh dan tahan lama, sehingga saya tidak khawatir tentang kerusakan setelah penggunaan berulang. Ujung pin yang runcing memudahkan untuk menembus berbagai jenis kain, dan saya sangat menghargai kenyamanan saat menggunakannya.',
-        profilePic: 'https://placehold.co/50x50',
-        reply: {
-          time: '10.55',
-          content:
-            'Halo Denada Ananda! Terima kasih atas ulasan baiknya, semoga barang awet. Kami menantikan pembelian Anda selanjutnya!',
-        },
-      },
-    ])
 
     const fetchProduct = async (productId) => {
       try {
@@ -115,6 +87,7 @@ export default {
         )
         const data = response.data.data.product
 
+        product.id = data.id || productId
         product.name = data.name || ''
         product.soldCount = data.unit || '0'
         product.description = data.description || ''
@@ -139,8 +112,9 @@ export default {
         finishingOptions.value = [
           { value: '0', label: 'Tanpa Finishing' },
           ...data.finishings.map((finishing) => ({
-            value: finishing.price.toString(),
+            value: finishing.id.toString(),
             label: `${finishing.name} (+${formatCurrency(finishing.price)})`,
+            price: finishing.price,
           })),
         ]
 
@@ -190,8 +164,13 @@ export default {
               .replace(/[,.]/g, '') || '0',
           )
         : product.price
-      const additionalPrice = parseInt(selectedFinishing.value) || 0
-      return variantPrice * quantity.value + additionalPrice
+
+      const selectedFinishingOption = finishingOptions.value.find(
+        (option) => option.value === selectedFinishing.value,
+      )
+      const additionalPrice = selectedFinishingOption?.price || 0
+
+      return (variantPrice + additionalPrice) * quantity.value
     })
 
     const formatCurrency = (value) => {
@@ -219,11 +198,11 @@ export default {
       }
     }
 
-    const toggleBookmark = () => {
+    const toggleBookmark = async () => {
       if (!isAuthenticated.value) {
         Swal.fire({
           title: 'Perhatian',
-          text: 'Silakan login untuk menambahkan ke wishlist',
+          text: 'Silakan login untuk menambahkan bookmark',
           icon: 'warning',
           buttonsStyling: false,
           customClass: {
@@ -235,21 +214,67 @@ export default {
         })
         return
       }
-      isBookmarked.value = !isBookmarked.value
-      const message = isBookmarked.value
-        ? 'Produk ditambahkan ke wishlist'
-        : 'Produk dihapus dari wishlist'
 
-      Swal.fire({
-        title: 'Berhasil!',
-        text: message,
-        icon: 'success',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
-        },
-        confirmButtonText: 'Tutup',
-      })
+      try {
+        isAddingToCart.value = true
+
+        const formData = new FormData()
+        formData.append('product_id', product.id)
+        formData.append('quantity', quantity.value)
+        formData.append('product_variant_id', selectedSize.value)
+        formData.append(
+          'product_finishing_id',
+          selectedFinishing.value === '0' ? '' : selectedFinishing.value,
+        )
+        formData.append('additional_info', note.value)
+
+        const token = localStorage.getItem('token')
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/customer/cart`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          },
+        )
+
+        if (response.data.status === 'success') {
+          Swal.fire({
+            title: 'Berhasil!',
+            text: 'Produk berhasil ditambahkan ke bookmark',
+            icon: 'success',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+            },
+            confirmButtonText: 'Tutup',
+          })
+        }
+      } catch (error) {
+        console.error('Error adding to bookmark:', error)
+        let errorMessage = 'Gagal menambahkan produk ke bookmark'
+
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Sesi Anda telah berakhir. Silakan login kembali.'
+        }
+
+        Swal.fire({
+          title: 'Error',
+          text: errorMessage,
+          icon: 'error',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Tutup',
+        })
+      } finally {
+        isAddingToCart.value = false
+      }
     }
 
     const openChat = () => {
@@ -280,7 +305,101 @@ export default {
       })
     }
 
-    const placeOrder = () => {
+    const addToCart = async () => {
+      if (!isAuthenticated.value) {
+        Swal.fire({
+          title: 'Perhatian',
+          text: 'Silakan login untuk menambahkan ke keranjang',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Login',
+        }).then(() => {
+          router.push('/login')
+        })
+        return
+      }
+
+      if (!selectedSize.value) {
+        Swal.fire({
+          title: 'Perhatian',
+          text: 'Silakan pilih ukuran terlebih dahulu',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Tutup',
+        })
+        return
+      }
+
+      try {
+        isAddingToCart.value = true
+
+        const formData = new FormData()
+        formData.append('product_id', product.id)
+        formData.append('quantity', quantity.value)
+        formData.append('product_variant_id', selectedSize.value)
+        formData.append(
+          'product_finishing_id',
+          selectedFinishing.value === '0' ? '' : selectedFinishing.value,
+        )
+        formData.append('additional_info', note.value)
+
+        const token = localStorage.getItem('token')
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/customer/cart`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          },
+        )
+
+        if (response.data.status === 'success') {
+          Swal.fire({
+            title: 'Berhasil!',
+            text: 'Produk berhasil ditambahkan ke keranjang',
+            icon: 'success',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+            },
+            confirmButtonText: 'Tutup',
+          })
+        }
+      } catch (error) {
+        console.error('Error adding to cart:', error)
+        let errorMessage = 'Gagal menambahkan produk ke keranjang'
+
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Sesi Anda telah berakhir. Silakan login kembali.'
+          router.push('/login')
+        }
+
+        Swal.fire({
+          title: 'Error',
+          text: errorMessage,
+          icon: 'error',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Tutup',
+        })
+      } finally {
+        isAddingToCart.value = false
+      }
+    }
+
+    const placeOrder = async () => {
       if (!isAuthenticated.value) {
         Swal.fire({
           title: 'Perhatian',
@@ -296,6 +415,7 @@ export default {
         })
         return
       }
+
       if (!selectedSize.value) {
         Swal.fire({
           title: 'Perhatian',
@@ -310,111 +430,80 @@ export default {
         return
       }
 
-      Swal.fire({
-        title: 'Pesanan Dibuat',
-        text: 'Pesanan Anda sedang diproses',
-        icon: 'success',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
-        },
-        confirmButtonText: 'Lihat Pesanan',
-      })
-    }
+      try {
+        isAddingToCart.value = true
 
-    const reportProduct = () => {
-      if (!isAuthenticated.value) {
+        // Create new cart item
+        const formData = new FormData()
+        formData.append('product_id', product.id)
+        formData.append('quantity', quantity.value)
+        formData.append('product_variant_id', selectedSize.value)
+        formData.append(
+          'product_finishing_id',
+          selectedFinishing.value === '0' ? '' : selectedFinishing.value,
+        )
+        formData.append('additional_info', note.value)
+
+        const token = localStorage.getItem('token')
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/customer/cart`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          },
+        )
+
+        if (response.data.status === 'success') {
+          const cartId = response.data.data.id // Assuming response includes cart ID
+          Swal.fire({
+            title: 'Berhasil!',
+            text: 'Produk ditambahkan ke keranjang, menuju checkout...',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false,
+            customClass: {
+              popup: 'rounded-lg',
+            },
+          }).then(() => {
+            // Redirect to checkout with cart ID
+            router.push({
+              path: '/checkout',
+              query: { cart_ids: [cartId] },
+            })
+          })
+        }
+      } catch (error) {
+        console.error('Error creating cart for checkout:', error)
+        let errorMessage = 'Gagal membuat pesanan'
+
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Sesi Anda telah berakhir. Silakan login kembali.'
+          router.push('/login')
+        }
+
         Swal.fire({
-          title: 'Perhatian',
-          text: 'Silakan login untuk melaporkan produk',
-          icon: 'warning',
+          title: 'Error',
+          text: errorMessage,
+          icon: 'error',
           buttonsStyling: false,
           customClass: {
             confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
           },
-          confirmButtonText: 'Login',
-        }).then(() => {
-          router.push('/login')
+          confirmButtonText: 'Tutup',
         })
-        return
+      } finally {
+        isAddingToCart.value = false
       }
-      Swal.fire({
-        title: 'Laporkan Produk',
-        html: `
-          <form id="reportForm" class="text-left">
-            <div class="mb-3">
-              <label class="block text-gray-700 font-medium text-sm mb-1" for="reportReason">
-                Alasan Laporan
-              </label>
-              <select
-                id="reportReason"
-                class="w-full text-sm p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Pilih alasan</option>
-                <option value="counterfeit">Produk palsu</option>
-                <option value="misleading">Informasi menyesatkan</option>
-                <option value="prohibited">Produk terlarang</option>
-                <option value="other">Lainnya</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="block text-gray-700 font-medium text-sm mb-1" for="reportDescription">
-                Deskripsi
-              </label>
-              <textarea
-                id="reportDescription"
-                class="w-full text-sm p-2 border border-gray-300 rounded-lg h-32"
-                style="text-indent: 0; padding: 8px; box-sizing: border-box;"
-                placeholder="Jelaskan lebih detail tentang laporan Anda"
-              ></textarea>
-            </div>
-          </form>
-        `,
-        showCancelButton: true,
-        buttonsStyling: false,
-        customClass: {
-          confirmButton:
-            'bg-red-600 text-white px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
-          cancelButton:
-            'bg-gray-300 text-gray-700 px-4 py-2 w-40 rounded-lg text-sm sm:text-base mt-6 sm:mt-8',
-          actions: 'flex justify-center space-x-6',
-        },
-        cancelButtonText: 'Batal',
-        confirmButtonText: 'Kirim Laporan',
-        preConfirm: () => {
-          const reason = document.getElementById('reportReason').value
-          const description = document.getElementById('reportDescription').value
-
-          if (!reason) {
-            Swal.showValidationMessage('Silakan pilih alasan laporan')
-            return false
-          }
-
-          if (!description.trim()) {
-            Swal.showValidationMessage('Silakan berikan deskripsi laporan')
-            return false
-          }
-
-          return { reason, description }
-        },
-      }).then((result) => {
-        if (result.isConfirmed) {
-          Swal.fire({
-            title: 'Terima Kasih',
-            text: 'Laporan Anda telah kami terima dan akan segera kami tindaklanjuti',
-            icon: 'success',
-            buttonsStyling: false,
-            customClass: {
-              confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
-            },
-            confirmButtonText: 'Tutup',
-          })
-        }
-      })
     }
 
     return {
       isLoaded,
+      isAddingToCart,
       product,
       productImages,
       note,
@@ -423,7 +512,6 @@ export default {
       quantity,
       sizeOptions,
       finishingOptions,
-      reviews,
       totalPrice,
       isBookmarked,
       formatCurrency,
@@ -433,11 +521,10 @@ export default {
       decreaseQuantity,
       toggleBookmark,
       openChat,
+      addToCart,
       placeOrder,
-      reportProduct,
       isAuthenticated,
     }
   },
 }
 </script>
-```

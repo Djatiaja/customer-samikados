@@ -1,8 +1,6 @@
 <template>
   <div class="flex flex-col min-h-screen bg-gray-100">
-    <!-- Header -->
     <HeaderAfterLogin />
-    <!-- Content Wrapper -->
     <div class="flex-1 mt-16">
       <div class="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
         <div class="flex justify-center">
@@ -28,7 +26,6 @@
             @logout="handleLogout"
           />
         </div>
-        <!-- Modals -->
         <AddAddressModal
           v-if="showAddAddressModal"
           :user="user"
@@ -38,8 +35,7 @@
         />
         <EditAddressModal
           v-if="showEditAddressModal"
-          :user="user"
-          :index="selectedAddressIndex"
+          :address="selectedAddress"
           :visible="showEditAddressModal"
           @update-address="updateAddress"
           @close="handleCloseEditAddressModal"
@@ -51,6 +47,7 @@
           @set-primary-address="setAsPrimaryAddress"
           @edit-address="handleEditAddress"
           @confirm-delete-address="confirmDeleteAddress"
+          @update-addresses="updateAddresses"
           @close="handleCloseAddressListModal"
         />
         <EditProfileModal
@@ -120,7 +117,6 @@ export default {
       photo_url: null,
       addresses: [],
     })
-
     const base_url = import.meta.env.VITE_API_BASE_URL
     const showAddAddressModal = ref(false)
     const showEditAddressModal = ref(false)
@@ -128,7 +124,7 @@ export default {
     const showEditProfileModal = ref(false)
     const showChangePasswordModal = ref(false)
     const showChangePhotoModal = ref(false)
-    const selectedAddressIndex = ref(null)
+    const selectedAddress = ref(null)
 
     const fetchUserProfile = async () => {
       try {
@@ -137,13 +133,9 @@ export default {
           throw new Error('Token autentikasi tidak ada')
         }
 
-        console.log('Base URL:', base_url)
-
         const profileResponse = await axios.get(`${base_url}/customer/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         })
-
-        console.log('Profile response:', profileResponse.data)
 
         if (profileResponse.data.status === 'success') {
           Object.assign(user, {
@@ -161,12 +153,11 @@ export default {
           headers: { Authorization: `Bearer ${token}` },
         })
 
-        console.log('Address response:', addressResponse.data)
-
         if (addressResponse.data.status === 'success') {
           user.addresses = Array.isArray(addressResponse.data.data)
             ? addressResponse.data.data
             : [addressResponse.data.data].filter(Boolean)
+          console.log('Fetched addresses:', user.addresses) // Debug
         } else {
           throw new Error(addressResponse.data.message || 'Gagal ambil data alamat')
         }
@@ -200,13 +191,47 @@ export default {
       }).format(amount)
     }
 
-    const setAsPrimaryAddress = (index) => {
-      user.addresses.forEach((addr, i) => {
-        addr.is_default = i === index ? 1 : 0
-      })
+    const setAsPrimaryAddress = async (index) => {
+      try {
+        const addressId = user.addresses[index].id
+        const addressToUpdate = user.addresses[index]
+        const token = localStorage.getItem('token')
+        if (!token) throw new Error('Token autentikasi tidak ada')
+
+        const formData = new FormData()
+        formData.append('is_default', '1')
+        formData.append('label', addressToUpdate.label || '')
+        formData.append('address', addressToUpdate.address || '')
+        formData.append('phone', addressToUpdate.phone || '')
+        formData.append('detail', addressToUpdate.detail || '')
+        formData.append('zip_code', addressToUpdate.zip_code || '')
+
+        await axios.post(`${base_url}/customer/address/${addressId}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
+        await fetchUserProfile() // Refresh data
+        console.log('Set primary address:', addressId) // Debug
+      } catch (error) {
+        console.error('Error setting primary address:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || 'Gagal mengubah alamat utama',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
+      }
     }
 
-    const confirmDeleteAddress = (index) => {
+    const confirmDeleteAddress = async ({ id, index }) => {
+      console.log('confirmDeleteAddress received:', { id, index }) // Debug
       Swal.fire({
         title: 'Konfirmasi Hapus Alamat',
         text: 'Yakin mau hapus alamat ini?',
@@ -217,68 +242,192 @@ export default {
         buttonsStyling: false,
         customClass: {
           confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md mr-4',
-          cancelButton: 'bg-gray-200 text-black py-2 px-4 rounded-md',
+          cancelButton: 'bg-gray-200 text-gray-700 py-2 px-4 rounded-md',
         },
-      }).then((result) => {
+      }).then(async (result) => {
         if (result.isConfirmed) {
-          if (user.addresses[index].is_default && user.addresses.length > 1) {
-            const newPrimaryIndex = index === 0 ? 1 : 0
-            user.addresses[newPrimaryIndex].is_default = 1
+          try {
+            const token = localStorage.getItem('token')
+            if (!token) {
+              throw new Error('Token autentikasi tidak ada')
+            }
+
+            // Panggil API DELETE
+            await axios.delete(`${base_url}/customer/address/${id}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            })
+
+            // Jika alamat default dihapus, set alamat lain sebagai default
+            if (user.addresses[index].is_default && user.addresses.length > 1) {
+              const newDefaultIndex = index === 0 ? 1 : 0
+              const newDefaultId = user.addresses[newDefaultIndex].id
+              const newDefaultAddress = user.addresses[newDefaultIndex]
+              const formData = new FormData()
+              formData.append('is_default', '1')
+              formData.append('label', newDefaultAddress.label || '')
+              formData.append('address', newDefaultAddress.address || '')
+              formData.append('phone', newDefaultAddress.phone || '')
+              formData.append('detail', newDefaultAddress.detail || '')
+              formData.append('zip_code', newDefaultAddress.zip_code || '')
+
+              await axios.post(`${base_url}/customer/address/${newDefaultId}`, formData, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'multipart/form-data',
+                },
+              })
+            }
+
+            await fetchUserProfile() // Refresh data
+            console.log('Deleted address:', id) // Debug
+            Swal.fire({
+              icon: 'success',
+              title: 'Berhasil',
+              text: 'Alamat berhasil dihapus',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+              },
+            })
+          } catch (error) {
+            console.error('Delete address error:', error)
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: error.response?.data?.message || 'Gagal menghapus alamat',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+              },
+            })
           }
-          user.addresses.splice(index, 1)
-          Swal.fire({
-            icon: 'success',
-            title: 'Berhasil',
-            text: 'Alamat berhasil dihapus',
-            confirmButtonText: 'OK',
-            buttonsStyling: false,
-            customClass: {
-              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
-            },
-          })
         }
       })
     }
 
-    const addAddress = (newAddress) => {
-      if (newAddress.is_default) {
-        user.addresses.forEach((addr) => (addr.is_default = 0))
+    const addAddress = async (newAddress) => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) throw new Error('Token autentikasi tidak ada')
+
+        const formData = new FormData()
+        formData.append('label', newAddress.label || '')
+        formData.append('address', newAddress.address || '')
+        formData.append('phone', newAddress.phone || '')
+        formData.append('detail', newAddress.detail || '')
+        formData.append('zip_code', newAddress.zip_code || '')
+        formData.append('is_default', newAddress.is_default ? '1' : '0')
+
+        await axios.post(`${base_url}/customer/address`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
+        await fetchUserProfile() // Refresh data
+        showAddAddressModal.value = false
+        console.log('Added address:', newAddress) // Debug
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Alamat berhasil ditambahkan',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
+      } catch (error) {
+        console.error('Add address error:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || 'Gagal menambah alamat',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
       }
-      user.addresses.push(newAddress)
-      showAddAddressModal.value = false
-      Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: 'Alamat berhasil ditambahkan',
-        confirmButtonText: 'OK',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
-        },
-      })
     }
 
-    const handleEditAddress = (index) => {
-      selectedAddressIndex.value = index
+    const handleEditAddress = (address) => {
+      console.log('handleEditAddress received:', address)
+      if (!address || !address.id) {
+        console.error('Invalid address data:', address)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Data alamat tidak valid',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
+        return
+      }
+      selectedAddress.value = address
       showEditAddressModal.value = true
     }
 
-    const updateAddress = (index, updatedAddress) => {
-      if (updatedAddress.is_default) {
-        user.addresses.forEach((addr) => (addr.is_default = 0))
+    const updateAddress = async (updatedAddress) => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) throw new Error('Token autentikasi tidak ada')
+
+        const formData = new FormData()
+        formData.append('label', updatedAddress.label || '')
+        formData.append('address', updatedAddress.address || '')
+        formData.append('phone', updatedAddress.phone || '')
+        formData.append('detail', updatedAddress.detail || '')
+        formData.append('zip_code', updatedAddress.zip_code || '')
+        formData.append('is_default', updatedAddress.is_default ? '1' : '0')
+
+        await axios.post(`${base_url}/customer/address/${updatedAddress.id}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
+        await fetchUserProfile() // Refresh data
+        showEditAddressModal.value = false
+        console.log('Updated address:', updatedAddress) // Debug
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Alamat berhasil diperbarui',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
+      } catch (error) {
+        console.error('Update address error:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || 'Gagal memperbarui alamat',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
       }
-      user.addresses[index] = updatedAddress
-      showEditAddressModal.value = false
-      Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: 'Alamat berhasil diperbarui',
-        confirmButtonText: 'OK',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
-        },
-      })
+    }
+
+    const updateAddresses = (newAddresses) => {
+      user.addresses = Array.isArray(newAddresses) ? newAddresses : [newAddresses].filter(Boolean)
+      console.log('Updated addresses via update-addresses:', user.addresses) // Debug
     }
 
     const handleOpenAddressListModal = () => {
@@ -451,7 +600,7 @@ export default {
         buttonsStyling: false,
         customClass: {
           confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md mr-4',
-          cancelButton: 'bg-gray-200 text-black py-2 px-4 rounded-md',
+          cancelButton: 'bg-gray-200 text-gray-700 py-2 px-4 rounded-md',
         },
       }).then((result) => {
         if (result.isConfirmed) {
@@ -479,7 +628,7 @@ export default {
       showEditProfileModal,
       showChangePasswordModal,
       showChangePhotoModal,
-      selectedAddressIndex,
+      selectedAddress,
       formatPhoneNumber,
       formatCurrency,
       setAsPrimaryAddress,
@@ -487,6 +636,7 @@ export default {
       addAddress,
       handleEditAddress,
       updateAddress,
+      updateAddresses,
       handleOpenAddressListModal,
       handleCloseAddressListModal,
       updateProfile,
