@@ -24,7 +24,7 @@
 
     <!-- Ukuran -->
     <div class="pb-4 mb-4">
-      <h3 class="text-lg sm:text-xl lg:text-2xl font-bold">Ukuran</h3>
+      <h3 class="text-lg sm:text-xl lg:text-2xl font-bold">Variasi</h3>
       <div class="flex flex-wrap gap-2 mt-2">
         <button
           v-for="option in sizeOptions"

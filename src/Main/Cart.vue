@@ -44,6 +44,7 @@
       <button
         class="bg-red-600 hover:bg-red-700 text-white px-4 md:px-8 py-2 rounded text-sm md:text-base mr-3 md:mr-10"
         @click="goToCheckout"
+        :disabled="!cartData.some((seller) => seller.items.some((item) => item.isSelected))"
       >
         Checkout
       </button>
@@ -106,29 +107,39 @@ export default {
   },
   methods: {
     handleScroll() {
-      const checkoutBar = this.$refs.checkoutBar
-      const footer = this.$refs.footer?.$el
-      if (!checkoutBar || !footer) return
+      if (this.scrollTimeout) clearTimeout(this.scrollTimeout)
+      this.scrollTimeout = setTimeout(() => {
+        const checkoutBar = this.$refs.checkoutBar
+        const footer = this.$refs.footer?.$el
+        if (!checkoutBar || !footer) {
+          console.warn('Checkout bar or footer not found')
+          return
+        }
 
-      const footerRect = footer.getBoundingClientRect()
-      const checkoutBarRect = checkoutBar.getBoundingClientRect()
-      const windowHeight = window.innerHeight
+        const footerRect = footer.getBoundingClientRect()
+        const checkoutBarRect = checkoutBar.getBoundingClientRect()
+        const windowHeight = window.innerHeight
 
-      // Default bottom spacing for the checkout bar
-      const defaultBottom = window.innerWidth < 768 ? 64 : 80 // 16rem or 20rem in pixels (64px or 80px)
-      const buffer = 20 // Small gap between checkout bar and footer
+        // Default bottom spacing for the checkout bar
+        const defaultBottom = window.innerWidth < 768 ? 64 : 80 // 64px or 80px
+        const buffer = 20 // Gap between checkout bar and footer
 
-      // Calculate the position where the checkout bar would be if fixed
-      const checkoutBarBottom = windowHeight - checkoutBarRect.height - defaultBottom
+        // Calculate the maximum allowed bottom position to avoid overlap
+        const footerTopRelativeToViewport = footerRect.top
+        const spaceBelowFooter = windowHeight - footerRect.top
 
-      // If the footer is above the checkout bar's fixed position, adjust the bottom property
-      if (footerRect.top <= checkoutBarBottom + checkoutBarRect.height + buffer) {
-        // Pin the checkout bar just above the footer
-        checkoutBar.style.bottom = `${windowHeight - footerRect.top + buffer}px`
-      } else {
-        // Revert to default fixed positioning
-        checkoutBar.style.bottom = `${defaultBottom}px`
-      }
+        // If the footer is close to or above the viewport bottom, adjust the checkout bar
+        if (
+          footerTopRelativeToViewport <
+          windowHeight - defaultBottom - checkoutBarRect.height - buffer
+        ) {
+          // Pin the checkout bar just above the footer
+          checkoutBar.style.bottom = `${spaceBelowFooter + buffer}px`
+        } else {
+          // Use default bottom spacing
+          checkoutBar.style.bottom = `${defaultBottom}px`
+        }
+      }, 100)
     },
     async fetchCart() {
       this.loading = true
@@ -714,7 +725,23 @@ export default {
       if (!selectedItems.length) {
         Swal.fire({
           title: 'Tidak Ada Produk Dipilih',
-          text: 'Pilih setidaknya satu produk untuk checkout',
+          text: 'Pilih satu produk untuk checkout',
+          icon: 'warning',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md',
+            title: 'text-lg md:text-xl',
+            popup: 'rounded-lg',
+          },
+          confirmButtonText: 'OK',
+        })
+        return
+      }
+
+      if (selectedItems.length > 1) {
+        Swal.fire({
+          title: 'Terlalu Banyak Produk Dipilih',
+          text: 'Hanya satu produk yang dapat di-checkout pada satu waktu',
           icon: 'warning',
           buttonsStyling: false,
           customClass: {
@@ -755,21 +782,41 @@ export default {
     },
     updateSellerSelection(sellerIndex) {
       const seller = this.cartData[sellerIndex]
-      seller.isSelected = !seller.isSelected
-      seller.items.forEach((item) => {
-        item.isSelected = seller.isSelected
+      const shouldSelect = !seller.isSelected
+
+      // Deselect all items first
+      this.cartData.forEach((s, si) => {
+        s.isSelected = false
+        s.items.forEach((item) => {
+          item.isSelected = false
+        })
       })
+
+      // If selecting, select all items of this seller
+      if (shouldSelect) {
+        seller.isSelected = true
+        seller.items[0].isSelected = true // Select only the first item
+      }
     },
     updateItemSelection(sellerIndex, itemIndex) {
-      const seller = this.cartData[sellerIndex]
-      const item = seller.items[itemIndex]
-      item.isSelected = !item.isSelected
-      seller.isSelected = seller.items.every((item) => item.isSelected)
+      // Deselect all items first
+      this.cartData.forEach((seller, si) => {
+        seller.isSelected = false
+        seller.items.forEach((item) => {
+          item.isSelected = false
+        })
+      })
+
+      // Select the clicked item
+      const item = this.cartData[sellerIndex].items[itemIndex]
+      item.isSelected = true
+
+      // Update seller selection state
+      this.updateSelectionState()
     },
     updateSelectionState() {
-      // Update seller selection state based on items
       this.cartData.forEach((seller) => {
-        seller.isSelected = seller.items.every((item) => item.isSelected)
+        seller.isSelected = seller.items.some((item) => item.isSelected)
       })
     },
   },

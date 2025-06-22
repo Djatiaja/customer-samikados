@@ -10,10 +10,7 @@
         </div>
         <h3 class="text-lg font-semibold text-gray-800">{{ order.shopName }}</h3>
       </div>
-      <span
-        :style="{ backgroundColor: getStatusColor }"
-        class="text-sm font-medium text-white px-3 py-1 rounded-full"
-      >
+      <span :class="getStatusClass" class="text-sm font-medium text-white px-3 py-1 rounded-full">
         {{ statusLabel }}
       </span>
     </div>
@@ -144,16 +141,31 @@ export default {
       }
       return statusMap[this.order.status] || this.order.status
     },
-    getStatusColor() {
-      const colorMap = {
-        SeaShell: '#3B82F6', // Masuk -> Blue (blue-500)
-        Red: '#F59E0B', // Diproses -> Yellow (yellow-500)
-        PaleVioletRed: '#10B981', // selesai -> Green (green-500)
-        Moccasin: '#EF4444', // batal -> Red (red-500)
-        BurlyWood: '#6B7280', // Belum Dibayar -> Gray (gray-500)
+    getStatusClass() {
+      const statusLower = this.order.status.toLowerCase()
+      switch (statusLower) {
+        case 'masuk':
+        case 'pending':
+        case 'belum dibayar':
+        case 'unpaid':
+          return 'bg-yellow-200 text-yellow-800'
+        case 'diproses':
+        case 'processing':
+          return 'bg-blue-500 text-blue-800'
+        case 'dikirim':
+        case 'shipped':
+        case 'in_transit':
+          return 'bg-orange-500 text-orange-800'
+        case 'selesai':
+        case 'completed':
+          return 'bg-green-500 text-green-800'
+        case 'batal':
+        case 'dibatalkan':
+        case 'cancelled':
+          return 'bg-red-500 text-red-800'
+        default:
+          return 'bg-gray-300 text-gray-800'
       }
-      const status = this.orderStatuses.find((s) => s.name === this.order.status)
-      return status && status.color ? colorMap[status.color] || status.color : '#E5E7EB'
     },
     getStatusTitle() {
       if (this.order.status === 'selesai') {

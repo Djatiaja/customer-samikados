@@ -26,7 +26,7 @@
             @toggle-bookmark="toggleBookmark"
           />
         </div>
-        <StoreInfo />
+        <StoreInfo :seller="seller" />
       </main>
     </div>
     <AuthFooter />
@@ -71,6 +71,12 @@ export default {
       price: 0,
     })
 
+    const seller = reactive({
+      id: '',
+      name: '',
+      photo_url: '',
+    })
+
     const productImages = ref([])
     const note = ref('')
     const selectedSize = ref('')
@@ -93,6 +99,10 @@ export default {
         product.description = data.description || ''
         product.price = data.variants.find((v) => v.is_default)?.price || data.price || 0
 
+        seller.id = data.seller.id || ''
+        seller.name = data.seller.name || 'Unknown Seller'
+        seller.photo_url = data.seller.photo_url || 'https://placehold.co/600x400'
+
         productImages.value = data.images
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((img) => ({
@@ -102,7 +112,10 @@ export default {
 
         sizeOptions.value = data.variants.map((variant, index) => ({
           value: variant.id.toString(),
-          label: `Variant ${index + 1} (${formatCurrency(variant.price)})`,
+          label: variant.name
+            ? `${variant.name} (${formatCurrency(variant.price)})`
+            : `Variant ${index + 1} (${formatCurrency(variant.price)})`,
+          price: variant.price,
         }))
         if (data.variants.length > 0) {
           selectedSize.value =
@@ -156,14 +169,7 @@ export default {
       const selectedVariant = sizeOptions.value.find(
         (option) => option.value === selectedSize.value,
       )
-      const variantPrice = selectedVariant
-        ? parseInt(
-            sizeOptions.value
-              .find((option) => option.value === selectedSize.value)
-              .label.match(/Rp([\d,.]+)/)?.[1]
-              .replace(/[,.]/g, '') || '0',
-          )
-        : product.price
+      const variantPrice = selectedVariant ? selectedVariant.price : product.price
 
       const selectedFinishingOption = finishingOptions.value.find(
         (option) => option.value === selectedFinishing.value,
@@ -433,7 +439,6 @@ export default {
       try {
         isAddingToCart.value = true
 
-        // Create new cart item
         const formData = new FormData()
         formData.append('product_id', product.id)
         formData.append('quantity', quantity.value)
@@ -457,7 +462,7 @@ export default {
         )
 
         if (response.data.status === 'success') {
-          const cartId = response.data.data.id // Assuming response includes cart ID
+          const cartId = response.data.data.id
           Swal.fire({
             title: 'Berhasil!',
             text: 'Produk ditambahkan ke keranjang, menuju checkout...',
@@ -468,7 +473,6 @@ export default {
               popup: 'rounded-lg',
             },
           }).then(() => {
-            // Redirect to checkout with cart ID
             router.push({
               path: '/checkout',
               query: { cart_ids: [cartId] },
@@ -524,6 +528,7 @@ export default {
       addToCart,
       placeOrder,
       isAuthenticated,
+      seller,
     }
   },
 }
