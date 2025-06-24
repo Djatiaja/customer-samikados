@@ -16,6 +16,7 @@ import Notification from '@/Main/Notification.vue'
 import Orders from '@/Main/Orders.vue'
 import RedirectPage from '@/Main/RedirectPage.vue'
 import ReviewOrder from '@/Main/ReviewOrder.vue'
+import SearchResults from '@/Main/SearchResults.vue'
 import TrackOrder from '@/Main/TrackOrder.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -23,7 +24,7 @@ const routes = [
   { path: '/', redirect: '/samikados' },
   { path: '/login', component: Login, meta: { requiresGuest: true } },
   { path: '/register', component: Register, meta: { requiresGuest: true } },
-  { path: '/verification', component: VerificationEmail, meta: { requiresAuth: true } },
+  { path: '/verification', component: VerificationEmail },
   { path: '/forgot-password', component: ForgotPassword, meta: { requiresGuest: true } },
   { path: '/otp-password', component: OtpPage, meta: { requiresGuest: true } },
   { path: '/reset-password', component: ResetPassword, meta: { requiresGuest: true } },
@@ -41,6 +42,7 @@ const routes = [
   { path: '/track-order', component: TrackOrder, meta: { requiresAuth: true } },
   { path: '/review-order', component: ReviewOrder, meta: { requiresAuth: true } },
   { path: '/account-settings', component: AccountSetting, meta: { requiresAuth: true } },
+  { path: '/search-results', component: SearchResults, meta: { requiresAuth: true } },
   { path: '/:pathMatch(.*)*', component: NotFoundPage },
 ]
 

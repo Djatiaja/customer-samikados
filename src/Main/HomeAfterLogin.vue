@@ -1,7 +1,7 @@
 ```vue
 <template>
   <div class="flex flex-col min-h-screen">
-    <HeaderAfterLogin />
+    <HeaderAfterLogin @search-product="handleProductSearch" />
 
     <div class="container mx-auto p-4 sm:p-8 flex-1">
       <!-- Full-width Banner with Swiper Carousel -->
@@ -36,7 +36,6 @@
             />
           </SwiperSlide>
         </Swiper>
-
         <div class="swiper-pagination"></div>
       </div>
 
@@ -63,7 +62,8 @@
 
       <!-- Produk -->
       <div class="container mx-auto">
-        <div v-if="!products.length" class="text-center py-8 text-gray-600">
+        <div v-if="loadingProducts" class="text-center py-8 text-gray-600">Memuat produk...</div>
+        <div v-else-if="!products.length" class="text-center py-8 text-gray-600">
           Tidak ada produk tersedia
         </div>
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -72,20 +72,21 @@
             :key="product.id"
             :id="product.id"
             :name="product.name"
-            :price="product.price.replace('Rp', '')"
+            :price="product.price"
             :link="product.link"
             :image="product.image"
+            :seller-name="product.sellerName"
           />
         </div>
       </div>
-    </div>
 
-    <AuthFooter />
+      <AuthFooter />
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Pagination, Navigation } from 'swiper/modules'
@@ -109,6 +110,17 @@ export default {
     const loading = ref(true)
     const categories = ref([])
     const products = ref([])
+    const loadingProducts = ref(false)
+    const productQuery = ref('')
+
+    // Debounce function
+    const debounce = (func, wait) => {
+      let timeout
+      return (...args) => {
+        clearTimeout(timeout)
+        timeout = setTimeout(() => func.apply(this, args), wait)
+      }
+    }
 
     // Fetch banners
     const fetchBanners = async () => {
@@ -167,23 +179,34 @@ export default {
       }
     }
 
-    // Fetch products
-    const fetchProducts = async () => {
+    // Fetch products (default or search)
+    const fetchProducts = async (query = '') => {
       try {
+        loadingProducts.value = true
         const token = localStorage.getItem('token')
         if (!token) throw new Error('Token autentikasi tidak ada')
-        const response = await axios.get(`${baseUrl}/products`, {
+
+        const endpoint = query ? `${baseUrl}/search` : `${baseUrl}/products`
+        const params = query ? { query } : { limit: 10, page: 1, search: '' }
+
+        const response = await axios.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` },
-          params: { limit: 10, page: 1, search: '' },
+          params,
         })
-        if (response.data.status === 'success' && Array.isArray(response.data.data.products)) {
-          products.value = response.data.data.products.map((product) => ({
-            id: product.id,
-            name: product.name,
-            price: `Rp${product.price.toLocaleString('id-ID')}`,
-            image: product.thumbnail_url.replace(/\\\//g, '/'),
-            link: `/product-details/${product.id}`,
-          }))
+
+        if (response.data.status === 'success') {
+          const data = query ? response.data.data : response.data.data.products
+          if (Array.isArray(data)) {
+            products.value = data.map((product) => ({
+              id: product.id,
+              name: product.name,
+              price: `Rp${product.price.toLocaleString('id-ID')}`,
+              image: product.thumbnail_url.replace(/\\\//g, '/'),
+              link: `/product-details/${product.id}`,
+            }))
+          } else {
+            throw new Error('Data produk tidak valid')
+          }
         } else {
           throw new Error(response.data.message || 'Gagal memuat produk')
         }
@@ -195,8 +218,25 @@ export default {
           text: error.message || 'Gagal memuat produk',
         })
         products.value = []
+      } finally {
+        loadingProducts.value = false
       }
     }
+
+    // Handle product search
+    const handleProductSearch = (query) => {
+      productQuery.value = query
+    }
+
+    // Debounced search
+    const debouncedSearch = debounce((query) => {
+      fetchProducts(query)
+    }, 500)
+
+    // Watch for changes in productQuery
+    watch(productQuery, (newQuery) => {
+      debouncedSearch(newQuery)
+    })
 
     // Select category and redirect
     const selectCategory = (categoryId) => {
@@ -214,9 +254,11 @@ export default {
       categories,
       products,
       loading,
+      loadingProducts,
       Pagination,
       Navigation,
       selectCategory,
+      handleProductSearch,
     }
   },
 }

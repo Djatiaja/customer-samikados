@@ -16,8 +16,17 @@
         <h1 class="text-xl sm:text-2xl font-semibold mx-auto text-gray-800">Detail Pesanan</h1>
       </div>
 
+      <!-- Direct Access Error -->
+      <div v-if="noOrderIdError" class="text-center py-8">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 inline-block">
+          <p class="text-base sm:text-lg text-red-600">
+            Akses tidak valid. Silakan pilih pesanan dari daftar pesanan.
+          </p>
+        </div>
+      </div>
+
       <!-- Loading State -->
-      <div v-if="loading" class="text-center py-8">
+      <div v-else-if="loading" class="text-center py-8">
         <div
           class="inline-block w-6 h-6 sm:w-8 sm:h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3"
         ></div>
@@ -25,14 +34,14 @@
       </div>
 
       <!-- Error State -->
-      <div v-if="error" class="text-center py-8">
+      <div v-else-if="error" class="text-center py-8">
         <div class="bg-red-50 border border-red-200 rounded-lg p-4 inline-block">
           <p class="text-base sm:text-lg text-red-600">{{ error }}</p>
         </div>
       </div>
 
       <!-- Order Details -->
-      <div v-if="order && !loading" class="space-y-6">
+      <div v-else-if="order" class="space-y-6">
         <!-- Order Status & Payment Status -->
         <div
           class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
@@ -46,18 +55,20 @@
               <p class="text-sm text-gray-600 font-medium">Status Pesanan</p>
               <span
                 class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold"
-                :class="getOrderStatusClass(order.order_status.name)"
+                :class="getOrderStatusClass(order.order_status?.name || 'Unknown')"
               >
-                {{ order.order_status.name }}
+                {{ formatStatusText(order.order_status?.name || 'Tidak Diketahui') }}
               </span>
             </div>
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Status Pembayaran</p>
               <span
                 class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold"
-                :class="getPaymentStatusClass(getPaymentStatus(order.order_status.name))"
+                :class="
+                  getPaymentStatusClass(getPaymentStatus(order.order_status?.name || 'Unknown'))
+                "
               >
-                {{ getPaymentStatusText(getPaymentStatus(order.order_status.name)) }}
+                {{ getPaymentStatusText(getPaymentStatus(order.order_status?.name || 'Unknown')) }}
               </span>
             </div>
           </div>
@@ -74,15 +85,19 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">ID Pesanan</p>
-              <p class="text-base font-semibold text-black">{{ order.id }}</p>
+              <p class="text-base font-semibold text-black">{{ order.id || '-' }}</p>
             </div>
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Tanggal Pembuatan</p>
-              <p class="text-base font-semibold text-black">{{ formatDate(order.created_at) }}</p>
+              <p class="text-base font-semibold text-black">
+                {{ formatDate(order.created_at) || '-' }}
+              </p>
             </div>
             <div class="space-y-1 sm:col-span-2">
               <p class="text-sm text-gray-600 font-medium">Alamat Pengiriman</p>
-              <p class="text-base font-semibold text-black leading-relaxed">{{ order.address }}</p>
+              <p class="text-base font-semibold text-black leading-relaxed">
+                {{ order.address || 'Alamat tidak tersedia' }}
+              </p>
             </div>
             <div class="space-y-1 sm:col-span-2">
               <p class="text-sm text-gray-600 font-medium">Catatan Tambahan</p>
@@ -102,13 +117,15 @@
           <div class="flex items-center space-x-4">
             <img
               :src="
-                order.seller.user.photo_url || 'https://placehold.co/64x64/e2e8f0/64748b?text=👤'
+                order.seller?.user?.photo_url || 'https://placehold.co/64x64/e2e8f0/64748b?text=👤'
               "
               alt="Seller Avatar"
               class="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-full"
             />
             <div>
-              <p class="text-base font-semibold text-gray-800">{{ order.seller.name }}</p>
+              <p class="text-base font-semibold text-gray-800">
+                {{ order.seller?.name || 'Penjual Tidak Diketahui' }}
+              </p>
             </div>
           </div>
         </div>
@@ -124,11 +141,11 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Jasa Pengiriman</p>
-              <p class="text-base font-semibold text-black">{{ order.shipping_name }}</p>
+              <p class="text-base font-semibold text-black">{{ order.shipping_name || '-' }}</p>
             </div>
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Layanan</p>
-              <p class="text-base font-semibold text-black">{{ order.service_name }}</p>
+              <p class="text-base font-semibold text-black">{{ order.service_name || '-' }}</p>
             </div>
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Nomor Resi</p>
@@ -163,20 +180,20 @@
           </h2>
           <div class="space-y-4">
             <div
-              v-for="item in order.order_detail"
+              v-for="item in order.order_detail || []"
               :key="item.id"
               class="flex items-start p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
             >
               <img
                 :src="
-                  item.product.thumbnail_url || 'https://placehold.co/80x80/e2e8f0/64748b?text=📦'
+                  item.product?.thumbnail_url || 'https://placehold.co/80x80/e2e8f0/64748b?text=📦'
                 "
                 alt="Product Image"
                 class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-lg flex-shrink-0"
               />
               <div class="ml-3 sm:ml-4 flex-1">
                 <p class="text-base sm:text-lg font-semibold text-gray-800 mb-2">
-                  {{ item.product.name || 'Produk Tidak Diketahui' }}
+                  {{ item.product?.name || 'Produk Tidak Diketahui' }}
                 </p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3">
                   <div>
@@ -195,7 +212,7 @@
                       <strong>Berat Total:</strong> {{ item.subtotal_weight || 0 }} kg
                     </p>
                     <p class="text-base sm:text-lg font-semibold text-gray-800 mt-1">
-                      {{ formatCurrency(item.subtotal_price) }}
+                      {{ formatCurrency(item.subtotal_price || 0) }}
                     </p>
                   </div>
                 </div>
@@ -218,24 +235,26 @@
           <div class="space-y-3">
             <div class="flex justify-between py-2 border-b border-gray-100">
               <p class="text-sm text-gray-600 font-medium">Subtotal</p>
-              <p class="text-base font-semibold text-black">{{ formatCurrency(order.subtotal) }}</p>
+              <p class="text-base font-semibold text-black">
+                {{ formatCurrency(order.subtotal || 0) }}
+              </p>
             </div>
             <div class="flex justify-between py-2 border-b border-gray-100">
               <p class="text-sm text-gray-600 font-medium">Biaya Pengiriman</p>
               <p class="text-base font-semibold text-black">
-                {{ formatCurrency(order.delivery_price) }}
+                {{ formatCurrency(order.delivery_price || 0) }}
               </p>
             </div>
             <div class="flex justify-between py-2 border-b border-gray-100">
               <p class="text-sm text-gray-600 font-medium">Biaya Aplikasi</p>
               <p class="text-base font-semibold text-black">
-                {{ formatCurrency(order.application_fee) }}
+                {{ formatCurrency(order.application_fee || 0) }}
               </p>
             </div>
             <div class="flex justify-between py-3 bg-gray-50 rounded-lg px-4 mt-4">
               <p class="text-base sm:text-lg font-bold text-gray-800">Total</p>
               <p class="text-base sm:text-lg font-bold text-black">
-                {{ formatCurrency(order.grand_total) }}
+                {{ formatCurrency(order.grand_total || 0) }}
               </p>
             </div>
           </div>
@@ -244,7 +263,7 @@
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center pt-4 sm:pt-6">
           <!-- Belum Dibayar -->
-          <template v-if="isUnpaidStatus(order.order_status.name)">
+          <template v-if="isUnpaidStatus(order.order_status?.name || '')">
             <button
               @click="processPayment"
               class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
@@ -262,13 +281,7 @@
           </template>
 
           <!-- Sudah Dibayar dan Sedang Diproses/Dikirim -->
-          <template
-            v-else-if="
-              ['processing', 'shipped', 'in_transit', 'diproses', 'dikirim'].includes(
-                order.order_status.name.toLowerCase(),
-              )
-            "
-          >
+          <template v-else-if="isShippedStatus(order.order_status?.name || '')">
             <button
               @click="completeOrder"
               class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
@@ -281,8 +294,8 @@
           <!-- Sudah Selesai -->
           <template
             v-else-if="
-              order.order_status.name.toLowerCase() === 'completed' ||
-              order.order_status.name.toLowerCase() === 'selesai'
+              (order.order_status?.name || '').toLowerCase() === 'completed' ||
+              (order.order_status?.name || '').toLowerCase() === 'selesai'
             "
           >
             <div class="text-center">
@@ -298,9 +311,9 @@
           <!-- Status Dibatalkan -->
           <template
             v-else-if="
-              order.order_status.name.toLowerCase() === 'cancelled' ||
-              order.order_status.name.toLowerCase() === 'dibatalkan' ||
-              order.order_status.name.toLowerCase() === 'batal'
+              (order.order_status?.name || '').toLowerCase() === 'cancelled' ||
+              (order.order_status?.name || '').toLowerCase() === 'dibatalkan' ||
+              (order.order_status?.name || '').toLowerCase() === 'batal'
             "
           >
             <div class="text-center">
@@ -352,6 +365,7 @@ export default {
       order: null,
       loading: false,
       error: null,
+      noOrderIdError: false,
     }
   },
 
@@ -362,8 +376,9 @@ export default {
 
       const orderId = localStorage.getItem('order_id')
       if (!orderId) {
-        this.error = 'Order ID tidak ditemukan.'
+        this.noOrderIdError = true
         this.loading = false
+        this.$router.push('/orders')
         return
       }
 
@@ -378,7 +393,7 @@ export default {
         if (response.data.status === 'success') {
           this.order = response.data.data
           // Normalize order_detail to prevent null issues
-          this.order.order_detail = this.order.order_detail.map(item => ({
+          this.order.order_detail = (this.order.order_detail || []).map((item) => ({
             ...item,
             product: item.product || { name: 'Produk Tidak Diketahui', thumbnail_url: null },
             product_finishing: item.product_finishing || {
@@ -396,21 +411,79 @@ export default {
       } catch (err) {
         this.error = err.message || 'Terjadi kesalahan saat mengambil data pesanan.'
         console.error('Error fetching order details:', err)
+        if (err.response?.status === 401) {
+          localStorage.removeItem('auth_token')
+          this.$router.push('/login')
+        }
       } finally {
         this.loading = false
       }
     },
 
+    // New method to format status text consistently (Title Case)
+    formatStatusText(status) {
+      if (!status || status === 'Tidak Diketahui') return 'Tidak Diketahui'
+
+      const statusMap = {
+        masuk: 'Masuk',
+        pending: 'Menunggu',
+        'belum dibayar': 'Belum Dibayar',
+        unpaid: 'Belum Dibayar',
+        diproses: 'Diproses',
+        processing: 'Diproses',
+        dikirim: 'Dikirim',
+        shipped: 'Dikirim',
+        in_transit: 'Dalam Pengiriman',
+        selesai: 'Selesai',
+        completed: 'Selesai',
+        dibatalkan: 'Dibatalkan',
+        cancelled: 'Dibatalkan',
+        batal: 'Dibatalkan',
+      }
+
+      const statusLower = status.toLowerCase()
+      return (
+        statusMap[statusLower] || status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+      )
+    },
+
     isUnpaidStatus(orderStatus) {
-      const unpaidStatuses = ['belum dibayar', 'unpaid', 'pending']
+      const unpaidStatuses = ['belum dibayar', 'unpaid', 'pending', 'masuk']
       return unpaidStatuses.includes(orderStatus.toLowerCase())
     },
 
+    isShippedStatus(orderStatus) {
+      const shippedStatuses = ['dikirim', 'shipped', 'in_transit']
+      return shippedStatuses.includes(orderStatus.toLowerCase())
+    },
+
     getPaymentStatus(orderStatus) {
-      if (this.isUnpaidStatus(orderStatus)) {
+      const statusLower = orderStatus.toLowerCase()
+
+      // Check if order is cancelled first (highest priority)
+      if (statusLower === 'cancelled' || statusLower === 'dibatalkan' || statusLower === 'batal') {
+        return 'cancelled'
+      }
+
+      // Check if order is unpaid
+      const unpaidStatuses = ['belum dibayar', 'unpaid', 'pending', 'masuk']
+      if (unpaidStatuses.includes(statusLower)) {
         return 'unpaid'
       }
-      return 'paid'
+
+      // Check if order is completed
+      if (statusLower === 'completed' || statusLower === 'selesai') {
+        return 'paid'
+      }
+
+      // For processing/shipped orders, they should be paid
+      const paidStatuses = ['diproses', 'processing', 'dikirim', 'shipped', 'in_transit']
+      if (paidStatuses.includes(statusLower)) {
+        return 'paid'
+      }
+
+      // Default fallback
+      return 'unknown'
     },
 
     copyTrackingNumber() {
@@ -454,7 +527,7 @@ export default {
     async processPayment() {
       const result = await Swal.fire({
         title: 'Konfirmasi Pembayaran',
-        text: `Anda akan melakukan pembayaran sebesar ${this.formatCurrency(this.order.grand_total)}`,
+        text: `Anda akan melakukan pembayaran sebesar ${this.formatCurrency(this.order.grand_total || 0)}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#2563EB',
@@ -487,7 +560,7 @@ export default {
               headers: {
                 Authorization: `Bearer ${token}`,
               },
-            }
+            },
           )
 
           if (response.status !== 200) {
@@ -555,6 +628,16 @@ export default {
     },
 
     async cancelOrder() {
+      if (!this.isUnpaidStatus(this.order.order_status?.name || '')) {
+        Swal.fire({
+          title: 'Gagal',
+          text: 'Pesanan hanya dapat dibatalkan jika belum dibayar.',
+          icon: 'error',
+          confirmButtonColor: '#2563EB',
+        })
+        return
+      }
+
       const result = await Swal.fire({
         title: 'Batalkan Pesanan?',
         text: 'Apakah Anda yakin ingin membatalkan pesanan ini?',
@@ -569,35 +652,54 @@ export default {
       if (result.isConfirmed) {
         try {
           const token = localStorage.getItem('auth_token')
-          // Assuming there's a cancel order endpoint
-          await axios.post(
-            `${this.baseUrl}/customer/orders/${this.order.id}/cancel`,
-            {},
+          const response = await axios.post(
+            `${this.baseUrl}/customer/orders/${this.order.id}/status`,
+            { order_status_id: 4 },
             {
               headers: { Authorization: `Bearer ${token}` },
-            }
+            },
           )
-          Swal.fire({
-            title: 'Pesanan Dibatalkan',
-            text: 'Pesanan Anda telah berhasil dibatalkan',
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            confirmButtonColor: '#2563EB',
-          })
-          this.fetchOrderDetails()
+
+          if (response.data.status === 'success') {
+            Swal.fire({
+              title: 'Pesanan Dibatalkan',
+              text: 'Pesanan Anda telah berhasil dibatalkan',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false,
+              confirmButtonColor: '#2563EB',
+            })
+            await this.fetchOrderDetails()
+          } else {
+            throw new Error(response.data.message || 'Gagal membatalkan pesanan')
+          }
         } catch (error) {
+          console.error('Error cancelling order:', error)
           Swal.fire({
             title: 'Gagal Membatalkan',
-            text: 'Terjadi kesalahan saat membatalkan pesanan',
+            text: error.response?.data?.message || 'Terjadi kesalahan saat membatalkan pesanan',
             icon: 'error',
             confirmButtonColor: '#2563EB',
           })
+          if (error.response?.status === 401) {
+            localStorage.removeItem('auth_token')
+            this.$router.push('/login')
+          }
         }
       }
     },
 
     async completeOrder() {
+      if (!this.isShippedStatus(this.order.order_status?.name || '')) {
+        Swal.fire({
+          title: 'Gagal',
+          text: 'Pesanan hanya dapat diselesaikan jika statusnya dikirim.',
+          icon: 'error',
+          confirmButtonColor: '#2563EB',
+        })
+        return
+      }
+
       const result = await Swal.fire({
         title: 'Selesaikan Pesanan?',
         text: 'Apakah Anda sudah menerima pesanan dengan baik?',
@@ -612,30 +714,39 @@ export default {
       if (result.isConfirmed) {
         try {
           const token = localStorage.getItem('auth_token')
-          // Assuming there's a complete order endpoint
-          await axios.post(
-            `${this.baseUrl}/customer/orders/${this.order.id}/complete`,
-            {},
+          const response = await axios.post(
+            `${this.baseUrl}/customer/orders/${this.order.id}/status`,
+            { order_status_id: 3 },
             {
               headers: { Authorization: `Bearer ${token}` },
-            }
+            },
           )
-          Swal.fire({
-            title: 'Pesanan Selesai!',
-            text: 'Terima kasih telah berbelanja dengan kami',
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            confirmButtonColor: '#2563EB',
-          })
-          this.fetchOrderDetails()
+
+          if (response.data.status === 'success') {
+            Swal.fire({
+              title: 'Pesanan Selesai!',
+              text: 'Terima kasih telah berbelanja dengan kami',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false,
+              confirmButtonColor: '#2563EB',
+            })
+            await this.fetchOrderDetails()
+          } else {
+            throw new Error(response.data.message || 'Gagal menyelesaikan pesanan')
+          }
         } catch (error) {
+          console.error('Error completing order:', error)
           Swal.fire({
             title: 'Gagal Menyelesaikan',
-            text: 'Terjadi kesalahan saat menyelesaikan pesanan',
+            text: error.response?.data?.message || 'Terjadi kesalahan saat menyelesaikan pesanan',
             icon: 'error',
             confirmButtonColor: '#2563EB',
           })
+          if (error.response?.status === 401) {
+            localStorage.removeItem('auth_token')
+            this.$router.push('/login')
+          }
         }
       }
     },
@@ -675,6 +786,8 @@ export default {
           return 'bg-red-100 text-red-800'
         case 'pending':
           return 'bg-yellow-100 text-yellow-800'
+        case 'cancelled':
+          return 'bg-gray-100 text-gray-800'
         case 'failed':
           return 'bg-red-100 text-red-800'
         default:
@@ -690,11 +803,18 @@ export default {
           return 'Belum Dibayar'
         case 'pending':
           return 'Menunggu Pembayaran'
+        case 'cancelled':
+          return 'Pesanan Dibatalkan'
         case 'failed':
           return 'Pembayaran Gagal'
         default:
           return 'Status Tidak Diketahui'
       }
+    },
+
+    isCancelledStatus(orderStatus) {
+      const cancelledStatuses = ['cancelled', 'dibatalkan', 'batal']
+      return cancelledStatuses.includes(orderStatus.toLowerCase())
     },
 
     formatCurrency(amount) {
