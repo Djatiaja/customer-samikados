@@ -27,6 +27,7 @@
           />
         </div>
         <StoreInfo :seller="seller" />
+        <Reviews :reviews="reviews" />
       </main>
     </div>
     <AuthFooter />
@@ -47,6 +48,7 @@ import AuthFooter from '@/components/AuthFooter.vue'
 import ProductImages from '@/components/details-product/ProductImages.vue'
 import ProductDetails from '@/components/details-product/ProductDetails.vue'
 import StoreInfo from '@/components/details-product/StoreInfo.vue'
+import Reviews from '@/components/details-product/Reviews.vue'
 
 export default {
   components: {
@@ -56,6 +58,7 @@ export default {
     ProductImages,
     ProductDetails,
     StoreInfo,
+    Reviews,
   },
   setup() {
     const route = useRoute()
@@ -85,6 +88,46 @@ export default {
     const isBookmarked = ref(false)
     const sizeOptions = ref([])
     const finishingOptions = ref([{ value: '0', label: 'Tanpa Finishing' }])
+
+    // Dummy review data
+    const reviews = ref([
+      {
+        id: 1,
+        user: 'John Doe',
+        profilePic: 'https://placehold.co/100x100',
+        rating: 4,
+        content: 'Produk berkualitas tinggi, pengiriman cepat!',
+        time: '14:30',
+        date: '2025-06-20',
+        reply: {
+          content: 'Terima kasih atas ulasannya! Kami senang Anda puas dengan produk kami.',
+          time: '15:00, 2025-06-20',
+        },
+      },
+      {
+        id: 2,
+        user: 'Jane Smith',
+        profilePic: 'https://placehold.co/100x100',
+        rating: 5,
+        content: 'Sangat puas dengan pembelian ini, sesuai dengan deskripsi.',
+        time: '09:15',
+        date: '2025-06-18',
+        reply: null,
+      },
+      {
+        id: 3,
+        user: 'Mike Johnson',
+        profilePic: 'https://placehold.co/100x100',
+        rating: 3,
+        content: 'Produk bagus tapi pengemasan bisa lebih baik.',
+        time: '11:45',
+        date: '2025-06-15',
+        reply: {
+          content: 'Terima kasih atas masukan Anda, kami akan tingkatkan pengemasan di masa depan.',
+          time: '12:00, 2025-06-15',
+        },
+      },
+    ])
 
     const fetchProduct = async (productId) => {
       try {
@@ -529,6 +572,7 @@ export default {
       placeOrder,
       isAuthenticated,
       seller,
+      reviews,
     }
   },
 }

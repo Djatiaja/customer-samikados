@@ -539,18 +539,55 @@ export default {
       }
     }
 
-    const changePassword = () => {
-      showChangePasswordModal.value = false
-      Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: 'Kata sandi berhasil diubah',
-        confirmButtonText: 'OK',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
-        },
-      })
+    const changePassword = async (passwordData) => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          throw new Error('Token autentikasi tidak ada')
+        }
+
+        const response = await axios.post(
+          `${base_url}/auth/reset_password`,
+          {
+            currentPassword: passwordData.oldPassword,
+            password: passwordData.newPassword,
+            password_confirmation: passwordData.newPassword,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        )
+
+        if (response.data.status === 'success') {
+          showChangePasswordModal.value = false
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: response.data.message || 'Password berhasil diubah',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+            },
+          })
+        } else {
+          throw new Error(response.data.message || 'Gagal mengubah password')
+        }
+      } catch (error) {
+        console.error('Change password error:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || error.message || 'Gagal mengubah password',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        })
+      }
     }
 
     const handleOpenChangePhotoModal = () => {

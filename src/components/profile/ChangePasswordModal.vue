@@ -228,11 +228,10 @@ export default {
           .then((result) => {
             if (result.isConfirmed && result.value) {
               emit('change-password', result.value)
-              form.value.oldPassword = ''
-              form.value.newPassword = ''
-              form.value.confirmNewPassword = ''
+              // Reset form setelah sukses akan dilakukan di parent component
+            } else {
+              emit('close')
             }
-            emit('close')
           })
           .catch((error) => {
             // Silent catch

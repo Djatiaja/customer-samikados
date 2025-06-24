@@ -28,7 +28,8 @@
             placeholder="Cari kota, area, atau lokasi"
             class="w-full pl-5 pr-10 py-2 rounded-full text-black focus:outline-none bg-white focus:ring-2 focus:ring-white location-input"
             @focus="showLocationDropdown = true"
-            @input="filterLocations"
+            @input="handleLocationSearch"
+            @keyup.enter="performLocationSearch"
           />
           <img
             :src="locationQuery ? '/icons/close.svg' : '/icons/location.svg'"
@@ -39,43 +40,38 @@
 
           <!-- Location Dropdown -->
           <div
-            v-if="showLocationDropdown"
+            v-if="showLocationDropdown && locationResults.length > 0"
             class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-64 overflow-y-auto location-dropdown"
           >
-            <div v-if="filteredLocations.length === 0" class="p-4 text-gray-500 text-center">
-              Tidak ada lokasi yang ditemukan
-            </div>
-
-            <template v-else>
-              <!-- Current selection -->
-              <div v-if="selectedLocation" class="p-4 border-b cursor-pointer bg-gray-100">
-                <div class="flex items-center text-red-600">
-                  <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
-                  <span class="font-semibold">Lokasi terpilih</span>
-                </div>
-                <div class="text-red-600 mt-1">
-                  {{ selectedLocation.name }}, {{ selectedLocation.province }}
-                </div>
+            <div class="p-2">
+              <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN LOKASI</div>
+              <div
+                v-for="location in locationResults.slice(0, 5)"
+                :key="location.id"
+                class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100"
+                @click="selectLocation(location)"
+              >
+                <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
+                <span>{{ location.name }}, {{ location.province }}</span>
               </div>
 
-              <!-- Cities with agents -->
-              <div class="p-4">
-                <div class="text-gray-500 text-sm mb-2">LOKASI AGEN SAMIKADOS</div>
-                <div
-                  v-for="location in filteredLocations"
-                  :key="location.id"
-                  class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100"
-                  @click="selectLocation(location)"
+              <div v-if="locationResults.length > 5" class="p-2 text-center border-t">
+                <button
+                  @click="viewAllResults('location')"
+                  class="text-red-600 hover:text-red-700 font-medium"
                 >
-                  <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
-                  <span>{{ location.name }}, {{ location.province }}</span>
-                </div>
+                  Lihat semua {{ locationResults.length }} hasil lokasi
+                </button>
               </div>
-            </template>
-
-            <div class="p-3 text-center border-t">
-              <button @click="showLocationDropdown = false" class="text-gray-500">Tutup</button>
             </div>
+          </div>
+
+          <!-- Location Loading Indicator -->
+          <div
+            v-if="isLocationSearching"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+          >
+            <div class="p-4 text-gray-500 text-center">Mencari lokasi...</div>
           </div>
         </div>
 
@@ -85,10 +81,13 @@
             v-model="productQuery"
             placeholder="Cari Produk.."
             class="w-full pl-10 pr-10 py-2 rounded-full text-black focus:outline-none bg-white focus:ring-2 focus:ring-white"
+            @input="handleProductSearch"
+            @keyup.enter="performProductSearch"
           />
           <img
             src="/icons/search.svg"
-            class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 cursor-pointer"
+            @click="performProductSearch"
             alt="Search Icon"
           />
           <img
@@ -98,6 +97,62 @@
             @click="clearProductSearch"
             alt="Clear Search"
           />
+
+          <!-- Product Search Results Dropdown -->
+          <div
+            v-if="showProductDropdown && searchResults.length > 0"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-80 overflow-y-auto"
+          >
+            <div class="p-2">
+              <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN PRODUK</div>
+              <div
+                v-for="product in searchResults.slice(0, 5)"
+                :key="product.id"
+                class="flex items-center p-3 cursor-pointer hover:bg-gray-100 rounded"
+                @click="selectProduct(product)"
+              >
+                <img
+                  :src="product.thumbnail_url"
+                  :alt="product.name"
+                  class="w-12 h-12 object-cover rounded mr-3"
+                />
+                <div class="flex-1">
+                  <div class="font-medium text-gray-800">{{ product.name }}</div>
+                  <div class="text-red-600 font-semibold">
+                    Rp{{ product.price.toLocaleString('id-ID') }}
+                  </div>
+                  <div class="text-gray-500 text-sm">{{ product.category.name }}</div>
+                </div>
+              </div>
+
+              <div v-if="searchResults.length > 5" class="p-2 text-center border-t">
+                <button
+                  @click="viewAllResults('product')"
+                  class="text-red-600 hover:text-red-700 font-medium"
+                >
+                  Lihat semua {{ searchResults.length }} hasil
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Results Message -->
+          <div
+            v-if="showProductDropdown && searchResults.length === 0 && productQuery && !isSearching"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+          >
+            <div class="p-4 text-gray-500 text-center">
+              Tidak ada produk yang ditemukan untuk "{{ productQuery }}"
+            </div>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div
+            v-if="isSearching"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+          >
+            <div class="p-4 text-gray-500 text-center">Mencari produk...</div>
+          </div>
         </div>
 
         <!-- Mobile Navigation Icons (Centered) -->
@@ -156,7 +211,8 @@
               autocomplete="off"
               class="w-full pl-5 pr-10 py-2 rounded-full text-black focus:outline-none bg-white focus:ring-2 focus:ring-white location-input"
               @focus="showLocationDropdown = true"
-              @input="filterLocations"
+              @input="handleLocationSearch"
+              @keyup.enter="performLocationSearch"
             />
             <img
               :src="locationQuery ? '/icons/close.svg' : '/icons/location.svg'"
@@ -167,43 +223,38 @@
 
             <!-- Location Dropdown -->
             <div
-              v-if="showLocationDropdown"
+              v-if="showLocationDropdown && locationResults.length > 0"
               class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-64 overflow-y-auto location-dropdown"
             >
-              <div v-if="filteredLocations.length === 0" class="p-4 text-gray-500 text-center">
-                Tidak ada lokasi yang ditemukan
-              </div>
-
-              <template v-else>
-                <!-- Current selection -->
-                <div v-if="selectedLocation" class="p-4 border-b cursor-pointer bg-gray-100">
-                  <div class="flex items-center text-red-600">
-                    <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
-                    <span class="font-semibold">Lokasi terpilih</span>
-                  </div>
-                  <div class="text-red-600 mt-1">
-                    {{ selectedLocation.name }}, {{ selectedLocation.province }}
-                  </div>
+              <div class="p-2">
+                <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN LOKASI</div>
+                <div
+                  v-for="location in locationResults.slice(0, 5)"
+                  :key="location.id"
+                  class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100"
+                  @click="selectLocation(location)"
+                >
+                  <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
+                  <span>{{ location.name }}, {{ location.province }}</span>
                 </div>
 
-                <!-- Cities with agents -->
-                <div class="p-4">
-                  <div class="text-gray-500 text-sm mb-2">LOKASI AGEN SAMIKADOS</div>
-                  <div
-                    v-for="location in filteredLocations"
-                    :key="location.id"
-                    class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100"
-                    @click="selectLocation(location)"
+                <div v-if="locationResults.length > 5" class="p-2 text-center border-t">
+                  <button
+                    @click="viewAllResults('location')"
+                    class="text-red-600 hover:text-red-700 font-medium"
                   >
-                    <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
-                    <span>{{ location.name }}, {{ location.province }}</span>
-                  </div>
+                    Lihat semua {{ locationResults.length }} hasil lokasi
+                  </button>
                 </div>
-              </template>
-
-              <div class="p-3 text-center border-t">
-                <button @click="showLocationDropdown = false" class="text-gray-500">Tutup</button>
               </div>
+            </div>
+
+            <!-- Location Loading Indicator -->
+            <div
+              v-if="isLocationSearching"
+              class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+            >
+              <div class="p-4 text-gray-500 text-center">Mencari lokasi...</div>
             </div>
           </div>
         </div>
@@ -215,11 +266,14 @@
             v-model="productQuery"
             placeholder="Cari Produk.."
             class="w-full pl-10 pr-10 py-2 rounded-full text-black focus:outline-none bg-white focus:ring-2 focus:ring-white"
+            @input="handleProductSearch"
+            @keyup.enter="performProductSearch"
           />
           <img
             src="/icons/search.svg"
-            class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 cursor-pointer"
             alt="Search Icon"
+            @click="performProductSearch"
           />
           <img
             v-if="productQuery"
@@ -228,6 +282,62 @@
             @click="clearProductSearch"
             alt="Clear Search"
           />
+
+          <!-- Product Search Results Dropdown -->
+          <div
+            v-if="showProductDropdown && searchResults.length > 0"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-80 overflow-y-auto"
+          >
+            <div class="p-2">
+              <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN PRODUK</div>
+              <div
+                v-for="product in searchResults.slice(0, 5)"
+                :key="product.id"
+                class="flex items-center p-3 cursor-pointer hover:bg-gray-100 rounded"
+                @click="selectProduct(product)"
+              >
+                <img
+                  :src="product.thumbnail_url"
+                  :alt="product.name"
+                  class="w-12 h-12 object-cover rounded mr-3"
+                />
+                <div class="flex-1">
+                  <div class="font-medium text-gray-800">{{ product.name }}</div>
+                  <div class="text-red-600 font-semibold">
+                    Rp{{ product.price.toLocaleString('id-ID') }}
+                  </div>
+                  <div class="text-gray-500 text-sm">{{ product.category.name }}</div>
+                </div>
+              </div>
+
+              <div v-if="searchResults.length > 5" class="p-2 text-center border-t">
+                <button
+                  @click="viewAllResults('product')"
+                  class="text-red-600 hover:text-red-700 font-medium"
+                >
+                  Lihat semua {{ searchResults.length }} hasil
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Results Message -->
+          <div
+            v-if="showProductDropdown && searchResults.length === 0 && productQuery && !isSearching"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+          >
+            <div class="p-4 text-gray-500 text-center">
+              Tidak ada produk yang ditemukan untuk "{{ productQuery }}"
+            </div>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div
+            v-if="isSearching"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+          >
+            <div class="p-4 text-gray-500 text-center">Mencari produk...</div>
+          </div>
         </div>
 
         <!-- Ikon Navigasi -->
@@ -283,50 +393,30 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 
 const route = useRoute()
+const router = useRouter()
 const locationQuery = ref('')
 const productQuery = ref('')
 const showLocationDropdown = ref(false)
+const showProductDropdown = ref(false)
 const mobileMenuOpen = ref(false)
 const selectedLocation = ref(null)
 const unreadNotifications = ref(0)
 const notificationTimer = ref(null)
 const userName = ref('')
+const searchResults = ref([])
+const locationResults = ref([])
+const isSearching = ref(false)
+const isLocationSearching = ref(false)
+const searchTimeout = ref(null)
+const locationSearchTimeout = ref(null)
 
 const base_url = import.meta.env.VITE_API_BASE_URL
-
-// Data untuk lokasi dengan agen SAMIKADOS saja
-const locations = [
-  { id: 1, name: 'Jakarta Pusat', province: 'DKI Jakarta' },
-  { id: 2, name: 'Jakarta Selatan', province: 'DKI Jakarta' },
-  { id: 3, name: 'Jakarta Barat', province: 'DKI Jakarta' },
-  { id: 4, name: 'Jakarta Timur', province: 'DKI Jakarta' },
-  { id: 5, name: 'Jakarta Utara', province: 'DKI Jakarta' },
-  { id: 6, name: 'Surabaya', province: 'Jawa Timur' },
-  { id: 7, name: 'Bandung', province: 'Jawa Barat' },
-  { id: 8, name: 'Yogyakarta', province: 'DIY' },
-  { id: 9, name: 'Semarang', province: 'Jawa Tengah' },
-  { id: 10, name: 'Denpasar', province: 'Bali' },
-]
-
-// Computed properties for filtered locations
-const filteredLocations = computed(() => {
-  if (!locationQuery.value) {
-    return locations
-  }
-
-  const query = locationQuery.value.toLowerCase()
-  return locations.filter(
-    (location) =>
-      location.name.toLowerCase().includes(query) ||
-      location.province.toLowerCase().includes(query),
-  )
-})
 
 // Check if a route is active
 const isActive = (path) => {
@@ -338,6 +428,7 @@ const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value
   if (!mobileMenuOpen.value) {
     showLocationDropdown.value = false
+    showProductDropdown.value = false
   }
 }
 
@@ -345,20 +436,161 @@ const toggleMobileMenu = () => {
 const clearLocationSelection = () => {
   locationQuery.value = ''
   selectedLocation.value = null
-  if (!locationQuery.value) {
-    showLocationDropdown.value = !showLocationDropdown.value
+  locationResults.value = []
+  showLocationDropdown.value = false
+  if (locationSearchTimeout.value) {
+    clearTimeout(locationSearchTimeout.value)
   }
 }
 
 // Clear product search
 const clearProductSearch = () => {
   productQuery.value = ''
+  searchResults.value = []
+  showProductDropdown.value = false
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
 }
 
-// Filter locations as user types
-const filterLocations = () => {
-  if (locationQuery.value && !showLocationDropdown.value) {
-    showLocationDropdown.value = true
+// Handle location search with debouncing
+const handleLocationSearch = () => {
+  if (locationSearchTimeout.value) {
+    clearTimeout(locationSearchTimeout.value)
+  }
+
+  if (!locationQuery.value.trim()) {
+    locationResults.value = []
+    showLocationDropdown.value = false
+    return
+  }
+
+  locationSearchTimeout.value = setTimeout(() => {
+    performLocationSearch(true)
+  }, 500) // Debounce for 500ms
+}
+
+// Perform location-based search
+const performLocationSearch = async (isDropdown = false) => {
+  if (!locationQuery.value.trim()) {
+    locationResults.value = []
+    showLocationDropdown.value = false
+    return
+  }
+
+  try {
+    isLocationSearching.value = true
+    if (isDropdown) {
+      showLocationDropdown.value = true
+    }
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      throw new Error('Token autentikasi tidak ada')
+    }
+
+    const response = await axios.get(`${base_url}/search/address`, {
+      params: {
+        query: locationQuery.value.trim(),
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (response.data.status === 'success') {
+      locationResults.value = response.data.data.locations || []
+      searchResults.value = response.data.data.products || []
+      if (!isDropdown && searchResults.value.length > 0) {
+        router.push(`/search-results?address=${encodeURIComponent(locationQuery.value)}`)
+      }
+    } else {
+      throw new Error(response.data.message || 'Gagal melakukan pencarian lokasi')
+    }
+  } catch (error) {
+    console.error('Location search error:', error)
+    locationResults.value = []
+    searchResults.value = []
+
+    if (error.response?.status === 401) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Sesi Berakhir',
+        text: 'Silakan login kembali',
+        confirmButtonText: 'OK',
+      }).then(() => {
+        router.push('/login')
+      })
+    }
+  } finally {
+    isLocationSearching.value = false
+  }
+}
+
+// Handle product search with debouncing
+const handleProductSearch = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+
+  if (!productQuery.value.trim()) {
+    searchResults.value = []
+    showProductDropdown.value = false
+    return
+  }
+
+  searchTimeout.value = setTimeout(() => {
+    performProductSearch()
+  }, 500) // Debounce for 500ms
+}
+
+// Perform product search
+const performProductSearch = async () => {
+  if (!productQuery.value.trim()) {
+    searchResults.value = []
+    showProductDropdown.value = false
+    return
+  }
+
+  try {
+    isSearching.value = true
+    showProductDropdown.value = true
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      throw new Error('Token autentikasi tidak ada')
+    }
+
+    const response = await axios.get(`${base_url}/search`, {
+      params: {
+        query: productQuery.value.trim(),
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (response.data.status === 'success') {
+      searchResults.value = response.data.data || []
+    } else {
+      throw new Error(response.data.message || 'Gagal melakukan pencarian')
+    }
+  } catch (error) {
+    console.error('Product search error:', error)
+    searchResults.value = []
+
+    if (error.response?.status === 401) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Sesi Berakhir',
+        text: 'Silakan login kembali',
+        confirmButtonText: 'OK',
+      }).then(() => {
+        router.push('/login')
+      })
+    }
+  } finally {
+    isSearching.value = false
   }
 }
 
@@ -367,7 +599,24 @@ const selectLocation = (location) => {
   selectedLocation.value = location
   locationQuery.value = `${location.name}, ${location.province}`
   showLocationDropdown.value = false
-  console.log('Selected location:', location)
+  performLocationSearch()
+}
+
+// Select a product from search results
+const selectProduct = (product) => {
+  showProductDropdown.value = false
+  router.push(`/product-details/${product.id}`)
+}
+
+// View all search results
+const viewAllResults = (type) => {
+  showProductDropdown.value = false
+  showLocationDropdown.value = false
+  if (type === 'product') {
+    router.push(`/search-results?query=${encodeURIComponent(productQuery.value)}`)
+  } else {
+    router.push(`/search-results?address=${encodeURIComponent(locationQuery.value)}`)
+  }
 }
 
 // Fetch notification count
@@ -407,7 +656,7 @@ const fetchUserProfile = async () => {
     })
 
     if (response.data.status === 'success') {
-      userName.value = response.data.data.name || 'AnastasiaPutri'
+      userName.value = response.data.data.name || 'AnastasiaPutra'
     } else {
       throw new Error(response.data.message || 'Gagal memuat profil')
     }
@@ -418,13 +667,25 @@ const fetchUserProfile = async () => {
 
 // Handler for clicking outside the dropdown
 const handleClickOutside = (event) => {
-  const dropdown = document.querySelector('.location-dropdown')
-  const input = document.querySelector('.location-input')
+  const locationDropdown = document.querySelector('.location-dropdown')
+  const locationInput = document.querySelector('.location-input')
 
-  if (showLocationDropdown.value && dropdown && input) {
-    if (!dropdown.contains(event.target) && !input.contains(event.target)) {
+  if (showLocationDropdown.value && locationDropdown && locationInput) {
+    if (!locationDropdown.contains(event.target) && !locationInput.contains(event.target)) {
       showLocationDropdown.value = false
     }
+  }
+
+  const productInput = document.querySelector('input[placeholder="Cari Produk.."]')
+  const productDropdown = document.querySelector('.product-details')
+
+  if (
+    showProductDropdown.value &&
+    productInput &&
+    !productInput.contains(event.target) &&
+    !productDropdown?.contains(event.target)
+  ) {
+    showProductDropdown.value = false
   }
 }
 
@@ -434,17 +695,22 @@ onMounted(() => {
   fetchNotificationCount()
   fetchUserProfile()
 
-  // Polling every 60 seconds
   notificationTimer.value = setInterval(() => {
     fetchNotificationCount()
   }, 60000)
 })
 
 // Clean up
-onBeforeUnmount(() => {
+onMounted(() => {
   document.removeEventListener('click', handleClickOutside)
   if (notificationTimer.value) {
     clearInterval(notificationTimer.value)
+  }
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+  if (locationSearchTimeout.value) {
+    clearTimeout(locationSearchTimeout.value)
   }
 })
 </script>
