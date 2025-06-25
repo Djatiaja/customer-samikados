@@ -1,4 +1,3 @@
-```vue
 <template>
   <!-- Root container -->
   <div class="bg-gray-100 min-h-screen flex flex-col">
@@ -33,7 +32,7 @@
               <div>
                 <p class="font-semibold">{{ selectedAddress?.label || 'Belum ada alamat' }}</p>
                 <p class="text-gray-500 text-sm md:text-base">
-                  {{ selectedAddress?.address || '-' }}
+                  {{ selectedAddress?.detail || '-' }}
                 </p>
                 <p class="text-gray-500 text-sm md:text-base">
                   {{ selectedAddress?.phone || '-' }}
@@ -323,7 +322,6 @@ export default {
       return
     }
 
-    // Validasi cart_ids
     const cartIds = this.$route.query.cart_ids
       ? Array.isArray(this.$route.query.cart_ids)
         ? this.$route.query.cart_ids.map(Number)
@@ -347,7 +345,6 @@ export default {
     this.fetchPreCheckout()
   },
   methods: {
-    // Utility function to escape HTML special characters
     escapeHtml(str) {
       if (!str) return ''
       return str
@@ -735,7 +732,7 @@ export default {
                             (location) => `
                             <div
                               class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100 location-item"
-                              data-location='${JSON.stringify(location).replace(/'/g, '&#39;').replace(/"/g, '&quot;')}'
+                              data-location='${JSON.stringify(location).replace(/'/g, '&apos;').replace(/"/g, '&quot;')}'
                             >
                               <i class="fas fa-map-marker-alt mr-2"></i>
                               <span>${this.escapeHtml(location.subdistrict_name)}, ${this.escapeHtml(location.district_name)}, ${this.escapeHtml(location.city_name)}, ${this.escapeHtml(location.zip_code)}</span>
@@ -750,7 +747,7 @@ export default {
                       item.addEventListener('click', () => {
                         try {
                           const location = JSON.parse(
-                            item.dataset.location.replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
+                            item.dataset.location.replace(/&apos;/g, "'").replace(/&quot;/g, '"'),
                           )
                           this.selectLocation(location)
                           selectedLocationText.textContent = this.formatLocationDisplay(location)
@@ -787,7 +784,7 @@ export default {
             },
             preConfirm: () => {
               try {
-                const address = document.getElementById('address').value.trim()
+                const addressInput = document.getElementById('address').value.trim()
                 const phone = document.getElementById('phone').value.trim()
                 const is_default = document.getElementById('is_default').checked
 
@@ -795,7 +792,7 @@ export default {
                   Swal.showValidationMessage('Alamat wajib dipilih dari hasil pencarian')
                   return false
                 }
-                if (!address) {
+                if (!addressInput) {
                   Swal.showValidationMessage('Detail alamat wajib diisi')
                   return false
                 }
@@ -805,9 +802,9 @@ export default {
                 }
 
                 return {
-                  id: isEdit ? address.id : null,
+                  id: isEdit ? address?.id : null,
                   label: this.selectedLocation.label,
-                  address,
+                  address: addressInput,
                   phone,
                   is_default,
                   subdistrict_name: this.selectedLocation.subdistrict_name,
@@ -834,13 +831,18 @@ export default {
               formData.append('subdistrict_name', result.value.subdistrict_name)
               formData.append('city_name', result.value.city_name)
               formData.append('province_name', result.value.province_name)
+              formData.append('detail', result.value.address) // Added for consistency with ProfilePage.vue
 
               console.log('FormData Payload:', Object.fromEntries(formData))
 
               const url = isEdit
                 ? `${this.baseUrl}/customer/address/${result.value.id}`
                 : `${this.baseUrl}/customer/address`
-              const method = isEdit ? 'put' : 'post'
+              const method = 'post'
+
+              if (isEdit && !result.value.id) {
+                throw new Error('Invalid address ID')
+              }
 
               const response = await axios({
                 method,
@@ -962,11 +964,18 @@ export default {
                 btn.addEventListener('click', () => {
                   try {
                     const addressId = parseInt(btn.getAttribute('data-address-id'))
+                    console.log('Editing address ID:', addressId)
                     const address = this.addresses.find((addr) => addr.id === addressId)
                     if (address) {
                       showAddressForm(true, address)
                     } else {
                       console.error('Address not found for ID:', addressId)
+                      Swal.fire({
+                        title: 'Error!',
+                        text: 'Alamat tidak ditemukan',
+                        icon: 'error',
+                        confirmButtonColor: '#dc2626',
+                      })
                     }
                   } catch (err) {
                     console.error('Error on edit button click:', err)
@@ -1082,4 +1091,3 @@ export default {
   accent-color: #dc2626;
 }
 </style>
-```
