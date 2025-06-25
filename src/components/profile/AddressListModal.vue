@@ -73,7 +73,7 @@ export default {
         const formData = new FormData()
         formData.append('is_default', '1')
         formData.append('label', addressToUpdate.label || '')
-        formData.append('address', addressToUpdate.address || '')
+        formData.append('address', addressToUpdate.detail || '') // Map detail to address
         formData.append('phone', addressToUpdate.phone || '')
         formData.append('detail', addressToUpdate.detail || '')
         formData.append('zip_code', addressToUpdate.zip_code || '')

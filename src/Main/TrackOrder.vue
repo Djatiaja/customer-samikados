@@ -448,7 +448,7 @@ export default {
     },
 
     isUnpaidStatus(orderStatus) {
-      const unpaidStatuses = ['belum dibayar', 'unpaid', 'pending', 'masuk']
+      const unpaidStatuses = ['belum dibayar', 'unpaid']
       return unpaidStatuses.includes(orderStatus.toLowerCase())
     },
 

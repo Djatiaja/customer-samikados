@@ -12,6 +12,9 @@
         <div class="text-gray-500 text-sm mt-2">
           <i class="fas fa-store mr-1"></i>{{ sellerName }}
         </div>
+        <div v-if="address" class="text-gray-400 text-xs mt-1 flex items-center">
+          <i class="fas fa-map-marker-alt mr-1"></i>{{ address }}
+        </div>
       </div>
     </router-link>
   </div>
@@ -43,6 +46,11 @@ export default {
     sellerName: {
       type: String,
       required: true,
+    },
+    address: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
 }

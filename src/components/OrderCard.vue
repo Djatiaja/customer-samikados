@@ -67,48 +67,6 @@
         <span class="text-lg">›</span>
       </button>
     </div>
-
-    <!-- Action Buttons -->
-    <div class="mt-4 flex justify-end space-x-3">
-      <template v-if="order.status === 'selesai'">
-        <button
-          class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md w-32 text-sm"
-          @click="$emit('buy-again', order.id)"
-        >
-          Beli Lagi
-        </button>
-        <button
-          class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md w-32 text-sm"
-          @click="$emit('review', order.id)"
-        >
-          Beri Ulasan
-        </button>
-      </template>
-      <template v-else-if="order.status === 'Diproses'">
-        <button
-          class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md w-32 text-sm"
-          @click="$emit('cancel', order.id)"
-        >
-          Batalkan
-        </button>
-      </template>
-      <template v-else-if="order.status === 'Masuk' || order.status === 'Belum Dibayar'">
-        <button
-          class="bg-gray-100 text-red-600 px-4 py-2 rounded-md border border-red-600 cursor-not-allowed w-32 text-sm"
-          disabled
-        >
-          {{ order.status === 'Belum Dibayar' ? 'Belum Dibayar' : 'Batalkan' }}
-        </button>
-      </template>
-      <template v-else-if="order.status === 'batal'">
-        <button
-          class="bg-gray-100 text-red-600 px-4 py-2 rounded-md border border-red-600 cursor-not-allowed w-32 text-sm"
-          disabled
-        >
-          Dibatalkan
-        </button>
-      </template>
-    </div>
   </div>
 </template>
 
