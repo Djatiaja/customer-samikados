@@ -52,7 +52,11 @@
         </p>
 
         <!-- Submit Button -->
-        <AuthMainButton text="Berikutnya" :disabled="isLoading" @click="submitOtp" />
+        <AuthMainButton
+          text="Berikutnya"
+          :disabled="isLoading || otpCode.join('').length !== 4"
+          @click="submitOtp"
+        />
       </section>
     </main>
 
@@ -75,7 +79,7 @@ export default {
   },
   data() {
     return {
-      otpCode: ['', '', '', ''], // Changed to 4 inputs
+      otpCode: ['', '', '', ''], // 4 inputs
       email: '',
       errorMessage: '',
       isLoading: false,
@@ -137,7 +141,7 @@ export default {
       const paste = event.clipboardData.getData('text').trim()
       if (paste.length === this.otpCode.length && /^\d+$/.test(paste)) {
         this.otpCode = paste.split('')
-        this.$refs.otp3[0].focus() // Adjusted for 4 inputs
+        this.$refs.otp3[0].focus()
       }
     },
     async submitOtp() {
@@ -146,6 +150,8 @@ export default {
         this.errorMessage = 'Masukkan kode OTP 4 digit dengan benar!'
         return
       }
+
+      if (this.isLoading) return // Prevent multiple submissions
 
       this.isLoading = true
       this.errorMessage = ''
@@ -156,13 +162,20 @@ export default {
           otp: otp,
         })
 
-        if (response.status === 200) {
+        console.log('Verify OTP response:', response.data)
+
+        if (response.status === 200 && response.data.data?.token) {
+          const token = response.data.data.token
+          console.log('Navigating with token:', token)
           this.$router.push({
             path: '/reset-password',
-            query: { email: this.email, token: response.data.token }, // Assuming token is in response
+            query: { email: this.email, token: token },
           })
+        } else {
+          this.errorMessage = 'Token not found in response. Please try again.'
         }
       } catch (error) {
+        console.error('Verify OTP error:', error)
         this.errorMessage = error.response?.data?.message || 'Invalid OTP. Please try again.'
       } finally {
         this.isLoading = false

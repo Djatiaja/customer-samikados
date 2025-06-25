@@ -47,7 +47,7 @@
           </div>
 
           <!-- Submit Button -->
-          <AuthMainButton text="Reset Password" :disabled="isLoading" />
+          <AuthMainButton text="Reset Password" :disabled="isLoading || !isTokenValid" />
         </form>
       </section>
     </main>
@@ -76,17 +76,29 @@ export default {
       isLoading: false,
     }
   },
+  computed: {
+    isTokenValid() {
+      return this.token && this.token.length > 0
+    },
+  },
   mounted() {
-    // Retrieve email and token from route query parameters
     this.email = this.$route.query.email || ''
     this.token = this.$route.query.token || ''
+    console.log('NewPassword query params:', this.$route.query) // Debug query params
 
-    if (!this.email || !this.token) {
-      this.errorMessage = 'Invalid access. Please complete the OTP verification first.'
+    if (!this.email) {
+      this.errorMessage = 'Email is missing. Please complete the OTP verification first.'
+    } else if (!this.isTokenValid) {
+      this.errorMessage = 'Invalid or missing token. Please complete the OTP verification first.'
     }
   },
   methods: {
     async resetPassword() {
+      if (!this.email || !this.isTokenValid) {
+        this.errorMessage = 'Invalid access. Please complete the OTP verification first.'
+        return
+      }
+
       if (this.password.trim() === '') {
         this.errorMessage = 'Password is required'
         return
@@ -97,19 +109,27 @@ export default {
         return
       }
 
+      if (this.password.length < 8) {
+        this.errorMessage = 'Password must be at least 8 characters long'
+        return
+      }
+
       this.isLoading = true
       this.errorMessage = ''
       this.successMessage = ''
 
+      const payload = {
+        token: this.token,
+        email: this.email,
+        password: this.password,
+        password_confirmation: this.password_confirmation,
+      }
+      console.log('Reset password payload:', payload) // Debug payload
+
       try {
         const response = await axios.post(
           `${import.meta.env.VITE_API_BASE_URL}/auth/reset-password`,
-          {
-            token: this.token,
-            email: this.email,
-            password: this.password,
-            password_confirmation: this.password_confirmation,
-          },
+          payload,
         )
 
         if (response.status === 200) {
@@ -119,8 +139,9 @@ export default {
           }, 2000)
         }
       } catch (error) {
+        console.error('Reset password error:', error.response?.data) // Debug error
         this.errorMessage =
-          error.response?.data?.message || 'Failed to reset password. Please try again.'
+          error.response?.data?.error || 'Failed to reset password. Please try again.'
       } finally {
         this.isLoading = false
       }
