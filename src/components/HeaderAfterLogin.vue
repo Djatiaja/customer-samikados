@@ -38,31 +38,64 @@
             alt="Location Icon"
           />
 
-          <!-- Location Dropdown -->
+          <!-- Location Products Dropdown -->
           <div
-            v-if="showLocationDropdown && locationResults.length > 0"
-            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-64 overflow-y-auto location-dropdown"
+            v-if="showLocationDropdown && locationProducts.length > 0"
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-80 overflow-y-auto location-dropdown"
           >
             <div class="p-2">
-              <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN LOKASI</div>
+              <div class="text-gray-500 text-sm mb-2">
+                PRODUK DI {{ locationQuery.toUpperCase() }}
+              </div>
               <div
-                v-for="location in locationResults.slice(0, 5)"
-                :key="location.id"
-                class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100"
-                @click="selectLocation(location)"
+                v-for="product in locationProducts.slice(0, 5)"
+                :key="product.id"
+                class="flex items-center p-3 cursor-pointer hover:bg-gray-100 rounded"
+                @click="selectLocationProduct(product)"
               >
-                <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
-                <span>{{ location.name }}, {{ location.province }}</span>
+                <img
+                  :src="product.thumbnail_url"
+                  :alt="product.name"
+                  class="w-12 h-12 object-cover rounded mr-3"
+                />
+                <div class="flex-1">
+                  <div class="font-medium text-gray-800">{{ product.name }}</div>
+                  <div class="text-red-600 font-semibold">
+                    Rp{{ product.price.toLocaleString('id-ID') }}
+                  </div>
+                  <div class="text-gray-500 text-sm">{{ product.seller_name }}</div>
+                  <div
+                    class="text-gray-400 text-xs"
+                    v-if="product.addresses && product.addresses.length > 0"
+                  >
+                    {{ product.addresses[0].city_name }}, {{ product.addresses[0].province_name }}
+                  </div>
+                </div>
               </div>
 
-              <div v-if="locationResults.length > 5" class="p-2 text-center border-t">
+              <div v-if="locationProducts.length > 5" class="p-2 text-center border-t">
                 <button
                   @click="viewAllResults('location')"
                   class="text-red-600 hover:text-red-700 font-medium"
                 >
-                  Lihat semua {{ locationResults.length }} hasil lokasi
+                  Lihat semua {{ locationProducts.length }} hasil di {{ locationQuery }}
                 </button>
               </div>
+            </div>
+          </div>
+
+          <!-- No Location Results Message -->
+          <div
+            v-if="
+              showLocationDropdown &&
+              locationProducts.length === 0 &&
+              locationQuery &&
+              !isLocationSearching
+            "
+            class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+          >
+            <div class="p-4 text-gray-500 text-center">
+              Tidak ada produk yang ditemukan di "{{ locationQuery }}"
             </div>
           </div>
 
@@ -71,7 +104,7 @@
             v-if="isLocationSearching"
             class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
           >
-            <div class="p-4 text-gray-500 text-center">Mencari lokasi...</div>
+            <div class="p-4 text-gray-500 text-center">Mencari produk di lokasi...</div>
           </div>
         </div>
 
@@ -221,31 +254,64 @@
               alt="Location Icon"
             />
 
-            <!-- Location Dropdown -->
+            <!-- Location Products Dropdown -->
             <div
-              v-if="showLocationDropdown && locationResults.length > 0"
-              class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-64 overflow-y-auto location-dropdown"
+              v-if="showLocationDropdown && locationProducts.length > 0"
+              class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black max-h-80 overflow-y-auto location-dropdown"
             >
               <div class="p-2">
-                <div class="text-gray-500 text-sm mb-2">HASIL PENCARIAN LOKASI</div>
+                <div class="text-gray-500 text-sm mb-2">
+                  PRODUK DI {{ locationQuery.toUpperCase() }}
+                </div>
                 <div
-                  v-for="location in locationResults.slice(0, 5)"
-                  :key="location.id"
-                  class="flex items-center text-gray-700 py-2 cursor-pointer hover:bg-gray-100"
-                  @click="selectLocation(location)"
+                  v-for="product in locationProducts.slice(0, 5)"
+                  :key="product.id"
+                  class="flex items-center p-3 cursor-pointer hover:bg-gray-100 rounded"
+                  @click="selectLocationProduct(product)"
                 >
-                  <img src="/icons/location.svg" class="mr-2 w-4 h-4" alt="Location Icon" />
-                  <span>{{ location.name }}, {{ location.province }}</span>
+                  <img
+                    :src="product.thumbnail_url"
+                    :alt="product.name"
+                    class="w-12 h-12 object-cover rounded mr-3"
+                  />
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-800">{{ product.name }}</div>
+                    <div class="text-red-600 font-semibold">
+                      Rp{{ product.price.toLocaleString('id-ID') }}
+                    </div>
+                    <div class="text-gray-500 text-sm">{{ product.seller_name }}</div>
+                    <div
+                      class="text-gray-400 text-xs"
+                      v-if="product.addresses && product.addresses.length > 0"
+                    >
+                      {{ product.addresses[0].city_name }}, {{ product.addresses[0].province_name }}
+                    </div>
+                  </div>
                 </div>
 
-                <div v-if="locationResults.length > 5" class="p-2 text-center border-t">
+                <div v-if="locationProducts.length > 5" class="p-2 text-center border-t">
                   <button
                     @click="viewAllResults('location')"
                     class="text-red-600 hover:text-red-700 font-medium"
                   >
-                    Lihat semua {{ locationResults.length }} hasil lokasi
+                    Lihat semua {{ locationProducts.length }} hasil di {{ locationQuery }}
                   </button>
                 </div>
+              </div>
+            </div>
+
+            <!-- No Location Results Message -->
+            <div
+              v-if="
+                showLocationDropdown &&
+                locationProducts.length === 0 &&
+                locationQuery &&
+                !isLocationSearching
+              "
+              class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
+            >
+              <div class="p-4 text-gray-500 text-center">
+                Tidak ada produk yang ditemukan di "{{ locationQuery }}"
               </div>
             </div>
 
@@ -254,7 +320,7 @@
               v-if="isLocationSearching"
               class="mt-2 bg-white shadow-lg rounded-md absolute w-full z-50 text-black"
             >
-              <div class="p-4 text-gray-500 text-center">Mencari lokasi...</div>
+              <div class="p-4 text-gray-500 text-center">Mencari produk di lokasi...</div>
             </div>
           </div>
         </div>
@@ -410,7 +476,7 @@ const unreadNotifications = ref(0)
 const notificationTimer = ref(null)
 const userName = ref('')
 const searchResults = ref([])
-const locationResults = ref([])
+const locationProducts = ref([]) // Changed from locationResults to locationProducts
 const isSearching = ref(false)
 const isLocationSearching = ref(false)
 const searchTimeout = ref(null)
@@ -436,7 +502,7 @@ const toggleMobileMenu = () => {
 const clearLocationSelection = () => {
   locationQuery.value = ''
   selectedLocation.value = null
-  locationResults.value = []
+  locationProducts.value = []
   showLocationDropdown.value = false
   if (locationSearchTimeout.value) {
     clearTimeout(locationSearchTimeout.value)
@@ -460,7 +526,7 @@ const handleLocationSearch = () => {
   }
 
   if (!locationQuery.value.trim()) {
-    locationResults.value = []
+    locationProducts.value = []
     showLocationDropdown.value = false
     return
   }
@@ -470,10 +536,10 @@ const handleLocationSearch = () => {
   }, 500) // Debounce for 500ms
 }
 
-// Perform location-based search
+// Perform location-based search - Fixed to properly handle products
 const performLocationSearch = async (isDropdown = false) => {
   if (!locationQuery.value.trim()) {
-    locationResults.value = []
+    locationProducts.value = []
     showLocationDropdown.value = false
     return
   }
@@ -499,9 +565,11 @@ const performLocationSearch = async (isDropdown = false) => {
     })
 
     if (response.data.status === 'success') {
-      locationResults.value = response.data.data.locations || []
-      searchResults.value = response.data.data.products || []
-      if (!isDropdown && searchResults.value.length > 0) {
+      // Set location products from the API response
+      locationProducts.value = response.data.data.products || []
+
+      // If not dropdown (Enter key pressed), navigate to search results
+      if (!isDropdown && locationProducts.value.length > 0) {
         router.push(`/search-results?address=${encodeURIComponent(locationQuery.value)}`)
       }
     } else {
@@ -509,8 +577,7 @@ const performLocationSearch = async (isDropdown = false) => {
     }
   } catch (error) {
     console.error('Location search error:', error)
-    locationResults.value = []
-    searchResults.value = []
+    locationProducts.value = []
 
     if (error.response?.status === 401) {
       Swal.fire({
@@ -594,12 +661,10 @@ const performProductSearch = async () => {
   }
 }
 
-// Select a location
-const selectLocation = (location) => {
-  selectedLocation.value = location
-  locationQuery.value = `${location.name}, ${location.province}`
+// Select a location product from search results
+const selectLocationProduct = (product) => {
   showLocationDropdown.value = false
-  performLocationSearch()
+  router.push(`/product-details/${product.id}`)
 }
 
 // Select a product from search results
@@ -614,7 +679,7 @@ const viewAllResults = (type) => {
   showLocationDropdown.value = false
   if (type === 'product') {
     router.push(`/search-results?query=${encodeURIComponent(productQuery.value)}`)
-  } else {
+  } else if (type === 'location') {
     router.push(`/search-results?address=${encodeURIComponent(locationQuery.value)}`)
   }
 }
@@ -701,7 +766,7 @@ onMounted(() => {
 })
 
 // Clean up
-onMounted(() => {
+onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
   if (notificationTimer.value) {
     clearInterval(notificationTimer.value)

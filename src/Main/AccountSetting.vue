@@ -125,6 +125,7 @@ export default {
     const showChangePasswordModal = ref(false)
     const showChangePhotoModal = ref(false)
     const selectedAddress = ref(null)
+    const isLoading = ref(false) // Added to manage button disabled state
 
     const fetchUserProfile = async () => {
       try {
@@ -157,7 +158,7 @@ export default {
           user.addresses = Array.isArray(addressResponse.data.data)
             ? addressResponse.data.data
             : [addressResponse.data.data].filter(Boolean)
-          console.log('Fetched addresses:', user.addresses) // Debug
+          console.log('Fetched addresses:', user.addresses)
         } else {
           throw new Error(addressResponse.data.message || 'Gagal ambil data alamat')
         }
@@ -172,6 +173,8 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close() // Ensure overlay is removed
         })
       }
     }
@@ -191,8 +194,73 @@ export default {
       }).format(amount)
     }
 
+    const changePassword = async (passwordData) => {
+      try {
+        isLoading.value = true // Disable button during request
+        const token = localStorage.getItem('token')
+        if (!token) {
+          throw new Error('Token autentikasi tidak ada')
+        }
+
+        const formData = new FormData()
+        formData.append('currentPassword', passwordData.oldPassword)
+        formData.append('password', passwordData.newPassword)
+        formData.append('password_confirmation', passwordData.newPassword)
+
+        console.log('Request URL:', `${base_url}/customer/profile/reset_password`)
+        console.log('Request Payload:', {
+          currentPassword: passwordData.oldPassword,
+          password: passwordData.newPassword,
+          password_confirmation: passwordData.newPassword,
+        })
+
+        const response = await axios.post(`${base_url}/customer/profile/reset_password`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
+        if (response.data.status === 'success') {
+          showChangePasswordModal.value = false // Close modal on success
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: response.data.message || 'Password berhasil diubah',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+            },
+          }).then(() => {
+            Swal.close() // Ensure overlay is removed
+          })
+        } else {
+          throw new Error(response.data.message || 'Gagal mengubah password')
+        }
+      } catch (error) {
+        console.error('Change password error:', error)
+        showChangePasswordModal.value = false // Reset modal state
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.message || error.message || 'Gagal mengubah password',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
+          },
+        }).then(() => {
+          Swal.close() // Ensure overlay is removed
+        })
+      } finally {
+        isLoading.value = false // Re-enable button
+      }
+    }
+
     const setAsPrimaryAddress = async (index) => {
       try {
+        isLoading.value = true
         const addressId = user.addresses[index].id
         const addressToUpdate = user.addresses[index]
         const token = localStorage.getItem('token')
@@ -201,7 +269,7 @@ export default {
         const formData = new FormData()
         formData.append('is_default', '1')
         formData.append('label', addressToUpdate.label || '')
-        formData.append('address', addressToUpdate.address || '')
+        formData.append('address', addressToUpdate.detail || '') // Fixed mapping
         formData.append('phone', addressToUpdate.phone || '')
         formData.append('detail', addressToUpdate.detail || '')
         formData.append('zip_code', addressToUpdate.zip_code || '')
@@ -213,8 +281,8 @@ export default {
           },
         })
 
-        await fetchUserProfile() // Refresh data
-        console.log('Set primary address:', addressId) // Debug
+        await fetchUserProfile()
+        console.log('Set primary address:', addressId)
       } catch (error) {
         console.error('Error setting primary address:', error)
         Swal.fire({
@@ -226,12 +294,16 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
+      } finally {
+        isLoading.value = false
       }
     }
 
     const confirmDeleteAddress = async ({ id, index }) => {
-      console.log('confirmDeleteAddress received:', { id, index }) // Debug
+      console.log('confirmDeleteAddress received:', { id, index })
       Swal.fire({
         title: 'Konfirmasi Hapus Alamat',
         text: 'Yakin mau hapus alamat ini?',
@@ -247,19 +319,18 @@ export default {
       }).then(async (result) => {
         if (result.isConfirmed) {
           try {
+            isLoading.value = true
             const token = localStorage.getItem('token')
             if (!token) {
               throw new Error('Token autentikasi tidak ada')
             }
 
-            // Panggil API DELETE
             await axios.delete(`${base_url}/customer/address/${id}`, {
               headers: {
                 Authorization: `Bearer ${token}`,
               },
             })
 
-            // Jika alamat default dihapus, set alamat lain sebagai default
             if (user.addresses[index].is_default && user.addresses.length > 1) {
               const newDefaultIndex = index === 0 ? 1 : 0
               const newDefaultId = user.addresses[newDefaultIndex].id
@@ -267,7 +338,7 @@ export default {
               const formData = new FormData()
               formData.append('is_default', '1')
               formData.append('label', newDefaultAddress.label || '')
-              formData.append('address', newDefaultAddress.address || '')
+              formData.append('address', newDefaultAddress.detail || '')
               formData.append('phone', newDefaultAddress.phone || '')
               formData.append('detail', newDefaultAddress.detail || '')
               formData.append('zip_code', newDefaultAddress.zip_code || '')
@@ -280,8 +351,8 @@ export default {
               })
             }
 
-            await fetchUserProfile() // Refresh data
-            console.log('Deleted address:', id) // Debug
+            await fetchUserProfile()
+            console.log('Deleted address:', id)
             Swal.fire({
               icon: 'success',
               title: 'Berhasil',
@@ -291,6 +362,8 @@ export default {
               customClass: {
                 confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
               },
+            }).then(() => {
+              Swal.close()
             })
           } catch (error) {
             console.error('Delete address error:', error)
@@ -303,7 +376,11 @@ export default {
               customClass: {
                 confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
               },
+            }).then(() => {
+              Swal.close()
             })
+          } finally {
+            isLoading.value = false
           }
         }
       })
@@ -311,12 +388,13 @@ export default {
 
     const addAddress = async (newAddress) => {
       try {
+        isLoading.value = true
         const token = localStorage.getItem('token')
         if (!token) throw new Error('Token autentikasi tidak ada')
 
         const formData = new FormData()
         formData.append('label', newAddress.label || '')
-        formData.append('address', newAddress.address || '')
+        formData.append('address', newAddress.detail || '')
         formData.append('phone', newAddress.phone || '')
         formData.append('detail', newAddress.detail || '')
         formData.append('zip_code', newAddress.zip_code || '')
@@ -329,9 +407,9 @@ export default {
           },
         })
 
-        await fetchUserProfile() // Refresh data
+        await fetchUserProfile()
         showAddAddressModal.value = false
-        console.log('Added address:', newAddress) // Debug
+        console.log('Added address:', newAddress)
         Swal.fire({
           icon: 'success',
           title: 'Berhasil',
@@ -341,6 +419,8 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
       } catch (error) {
         console.error('Add address error:', error)
@@ -353,7 +433,11 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
+      } finally {
+        isLoading.value = false
       }
     }
 
@@ -370,6 +454,8 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
         return
       }
@@ -379,12 +465,13 @@ export default {
 
     const updateAddress = async (updatedAddress) => {
       try {
+        isLoading.value = true
         const token = localStorage.getItem('token')
         if (!token) throw new Error('Token autentikasi tidak ada')
 
         const formData = new FormData()
         formData.append('label', updatedAddress.label || '')
-        formData.append('address', updatedAddress.address || '')
+        formData.append('address', updatedAddress.detail || '')
         formData.append('phone', updatedAddress.phone || '')
         formData.append('detail', updatedAddress.detail || '')
         formData.append('zip_code', updatedAddress.zip_code || '')
@@ -397,9 +484,9 @@ export default {
           },
         })
 
-        await fetchUserProfile() // Refresh data
+        await fetchUserProfile()
         showEditAddressModal.value = false
-        console.log('Updated address:', updatedAddress) // Debug
+        console.log('Updated address:', updatedAddress)
         Swal.fire({
           icon: 'success',
           title: 'Berhasil',
@@ -409,6 +496,8 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
       } catch (error) {
         console.error('Update address error:', error)
@@ -421,16 +510,21 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
+      } finally {
+        isLoading.value = false
       }
     }
 
     const updateAddresses = (newAddresses) => {
       user.addresses = Array.isArray(newAddresses) ? newAddresses : [newAddresses].filter(Boolean)
-      console.log('Updated addresses via update-addresses:', user.addresses) // Debug
+      console.log('Updated addresses via update-addresses:', user.addresses)
     }
 
     const handleOpenAddressListModal = () => {
+      console.log('Opening address list modal')
       showAddressListModal.value = true
     }
 
@@ -440,6 +534,7 @@ export default {
 
     const updateProfile = async (updatedProfile) => {
       try {
+        isLoading.value = true
         const token = localStorage.getItem('token')
         if (!token) {
           throw new Error('Token autentikasi tidak ada')
@@ -472,11 +567,14 @@ export default {
             customClass: {
               confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
             },
+          }).then(() => {
+            Swal.close()
           })
         } else {
           throw new Error(response.data.message || 'Gagal update profil')
         }
       } catch (error) {
+        console.error('Update profile error:', error)
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -486,13 +584,17 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
-        console.error('Update profile error:', error)
+      } finally {
+        isLoading.value = false
       }
     }
 
     const updateProfilePhoto = async (file) => {
       try {
+        isLoading.value = true
         const token = localStorage.getItem('token')
         if (!token) {
           throw new Error('Token autentikasi tidak ada')
@@ -520,11 +622,14 @@ export default {
             customClass: {
               confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
             },
+          }).then(() => {
+            Swal.close()
           })
         } else {
           throw new Error(response.data.message || 'Gagal update foto profil')
         }
       } catch (error) {
+        console.error('Update photo error:', error)
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -534,75 +639,31 @@ export default {
           customClass: {
             confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
           },
+        }).then(() => {
+          Swal.close()
         })
-        console.error('Update photo error:', error)
-      }
-    }
-
-    const changePassword = async (passwordData) => {
-      try {
-        const token = localStorage.getItem('token')
-        if (!token) {
-          throw new Error('Token autentikasi tidak ada')
-        }
-
-        const response = await axios.post(
-          `${base_url}/auth/reset_password`,
-          {
-            currentPassword: passwordData.oldPassword,
-            password: passwordData.newPassword,
-            password_confirmation: passwordData.newPassword,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        )
-
-        if (response.data.status === 'success') {
-          showChangePasswordModal.value = false
-          Swal.fire({
-            icon: 'success',
-            title: 'Berhasil',
-            text: response.data.message || 'Password berhasil diubah',
-            confirmButtonText: 'OK',
-            buttonsStyling: false,
-            customClass: {
-              confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
-            },
-          })
-        } else {
-          throw new Error(response.data.message || 'Gagal mengubah password')
-        }
-      } catch (error) {
-        console.error('Change password error:', error)
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error.response?.data?.message || error.message || 'Gagal mengubah password',
-          confirmButtonText: 'OK',
-          buttonsStyling: false,
-          customClass: {
-            confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
-          },
-        })
+      } finally {
+        isLoading.value = false
       }
     }
 
     const handleOpenChangePhotoModal = () => {
+      console.log('Opening change photo modal')
       showChangePhotoModal.value = true
     }
 
     const handleOpenAddAddressModal = () => {
+      console.log('Opening add address modal')
       showAddAddressModal.value = true
     }
 
     const handleOpenEditProfileModal = () => {
+      console.log('Opening edit profile modal')
       showEditProfileModal.value = true
     }
 
     const handleOpenChangePasswordModal = () => {
+      console.log('Opening change password modal')
       showChangePasswordModal.value = true
     }
 
@@ -652,6 +713,8 @@ export default {
             customClass: {
               confirmButton: 'bg-red-600 text-white py-2 px-4 rounded-md',
             },
+          }).then(() => {
+            Swal.close()
           })
         }
       })
@@ -666,6 +729,7 @@ export default {
       showChangePasswordModal,
       showChangePhotoModal,
       selectedAddress,
+      isLoading, // Expose isLoading for button disabling
       formatPhoneNumber,
       formatCurrency,
       setAsPrimaryAddress,

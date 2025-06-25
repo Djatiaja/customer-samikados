@@ -36,6 +36,7 @@
             />
           </SwiperSlide>
         </Swiper>
+
         <div class="swiper-pagination"></div>
       </div>
 
@@ -62,8 +63,7 @@
 
       <!-- Produk -->
       <div class="container mx-auto">
-        <div v-if="loadingProducts" class="text-center py-8 text-gray-600">Memuat produk...</div>
-        <div v-else-if="!products.length" class="text-center py-8 text-gray-600">
+        <div v-if="!products.length" class="text-center py-8 text-gray-600">
           Tidak ada produk tersedia
         </div>
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -72,16 +72,15 @@
             :key="product.id"
             :id="product.id"
             :name="product.name"
-            :price="product.price"
+            :price="product.price.replace('Rp', '')"
             :link="product.link"
             :image="product.image"
-            :seller-name="product.sellerName"
           />
         </div>
       </div>
-
-      <AuthFooter />
     </div>
+
+    <AuthFooter />
   </div>
 </template>
 
