@@ -1,5 +1,6 @@
 <template>
   <div class="bg-gray-100 flex flex-col min-h-screen font-roboto">
+    <!-- Header -->
     <AuthHeader title="SAMIKADOS" subtitle="LOGIN" />
 
     <!-- Main Content -->
@@ -13,120 +14,137 @@
         </figure>
       </section>
 
-      <!-- Password Reset Form -->
+      <!-- New Password Form -->
       <section class="w-full lg:w-1/3 bg-white p-8 shadow-xl rounded-lg">
-        <h2 class="text-xl lg:text-2xl font-bold mb-4 text-gray-800">ATUR PASSWORD BARU</h2>
-        <!-- New Password Input -->
-        <p class="text-sm text-gray-500">Masukkan Password Baru</p>
-        <div class="mb-4 relative">
-          <input
-            v-model="newPassword"
-            :type="showPassword ? 'text' : 'password'"
-            class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600 pr-10"
-            placeholder="Password"
-          />
-          <button
-            type="button"
-            @click="togglePasswordVisibility"
-            class="absolute inset-y-0 right-3 flex items-center"
-          >
-            <i :class="showPassword ? 'far fa-eye-slash' : 'far fa-eye'" class="text-gray-500"></i>
-          </button>
-        </div>
+        <h2 class="text-xl lg:text-2xl font-bold mb-4 text-gray-800">SET NEW PASSWORD</h2>
+        <p v-if="errorMessage" class="text-red-600 text-sm mb-4">{{ errorMessage }}</p>
+        <p v-if="successMessage" class="text-green-600 text-sm mb-4">{{ successMessage }}</p>
+        <form @submit.prevent="resetPassword">
+          <!-- Password Input -->
+          <div class="mb-4">
+            <label for="password" class="sr-only">New Password</label>
+            <input
+              id="password"
+              v-model="password"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              placeholder="New Password"
+              type="password"
+              required
+            />
+          </div>
 
-        <!-- Confirm Password Input -->
-        <p class="text-sm text-gray-500">Konfirmasi Password Baru</p>
-        <div class="mb-4 relative">
-          <input
-            v-model="confirmPassword"
-            :type="showPassword ? 'text' : 'password'"
-            class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
-            placeholder="Konfirmasi Password"
-          />
-        </div>
+          <!-- Password Confirmation Input -->
+          <div class="mb-4">
+            <label for="password_confirmation" class="sr-only">Confirm Password</label>
+            <input
+              id="password_confirmation"
+              v-model="password_confirmation"
+              class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+              placeholder="Confirm Password"
+              type="password"
+              required
+            />
+          </div>
 
-        <p class="text-xs text-gray-500 mb-4">
-          Password terdiri dari kombinasi huruf kecil, huruf besar, simbol, dan angka!
-        </p>
-
-        <!-- Submit Button -->
-        <AuthMainButton text="Berikutnya" @click="openConfirmPasswordModal" />
+          <!-- Submit Button -->
+          <AuthMainButton text="Reset Password" :disabled="isLoading || !isTokenValid" />
+        </form>
       </section>
     </main>
 
+    <!-- Footer -->
     <AuthFooter />
   </div>
 </template>
 
 <script>
-import Swal from 'sweetalert2'
-import AuthFooter from '@/components/AuthFooter.vue'
 import AuthHeader from '@/components/AuthHeader.vue'
 import AuthMainButton from '@/components/AuthMainButton.vue'
+import AuthFooter from '@/components/AuthFooter.vue'
+import axios from 'axios'
 
 export default {
-  components: { AuthFooter, AuthHeader, AuthMainButton },
+  components: { AuthHeader, AuthMainButton, AuthFooter },
   data() {
     return {
-      newPassword: '',
-      confirmPassword: '',
-      showPassword: false, // For toggling password visibility
+      email: '',
+      token: '',
+      password: '',
+      password_confirmation: '',
+      errorMessage: '',
+      successMessage: '',
+      isLoading: false,
+    }
+  },
+  computed: {
+    isTokenValid() {
+      return this.token && this.token.length > 0
+    },
+  },
+  mounted() {
+    this.email = this.$route.query.email || ''
+    this.token = this.$route.query.token || ''
+    console.log('NewPassword query params:', this.$route.query) // Debug query params
+
+    if (!this.email) {
+      this.errorMessage = 'Email is missing. Please complete the OTP verification first.'
+    } else if (!this.isTokenValid) {
+      this.errorMessage = 'Invalid or missing token. Please complete the OTP verification first.'
     }
   },
   methods: {
-    // Toggles password visibility
-    togglePasswordVisibility() {
-      this.showPassword = !this.showPassword
-    },
-
-    // Opens the confirmation modal
-    openConfirmPasswordModal() {
-      if (!this.newPassword || !this.confirmPassword) {
-        Swal.fire('Error', 'Mohon isi semua kolom!', 'error')
+    async resetPassword() {
+      if (!this.email || !this.isTokenValid) {
+        this.errorMessage = 'Invalid access. Please complete the OTP verification first.'
         return
       }
 
-      if (this.newPassword !== this.confirmPassword) {
-        Swal.fire('Error', 'Password tidak cocok!', 'error')
+      if (this.password.trim() === '') {
+        this.errorMessage = 'Password is required'
         return
       }
 
-      // Show confirmation modal using the custom script
-      this.confirmChangePassword()
-    },
+      if (this.password !== this.password_confirmation) {
+        this.errorMessage = 'Passwords do not match'
+        return
+      }
 
-    // The function for showing the confirmation modal
-    confirmChangePassword() {
-      Swal.fire({
-        title: "<span class='text-xl font-bold'>Konfirmasi Ganti Password</span>",
-        html: "<p class='text-lg'>Apakah Anda yakin ingin mengganti password?</p>",
-        showCancelButton: true,
-        confirmButtonText: 'Ya',
-        cancelButtonText: 'Batal',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white py-2 w-24 rounded-md mr-4',
-          cancelButton: 'bg-gray-200 text-black py-2 w-24 rounded-md',
-        },
-      }).then((result) => {
-        if (result.isConfirmed) {
-          this.showAlert()
+      if (this.password.length < 8) {
+        this.errorMessage = 'Password must be at least 8 characters long'
+        return
+      }
+
+      this.isLoading = true
+      this.errorMessage = ''
+      this.successMessage = ''
+
+      const payload = {
+        token: this.token,
+        email: this.email,
+        password: this.password,
+        password_confirmation: this.password_confirmation,
+      }
+      console.log('Reset password payload:', payload) // Debug payload
+
+      try {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/auth/reset-password`,
+          payload,
+        )
+
+        if (response.status === 200) {
+          this.successMessage = 'Password successfully reset! Redirecting to login...'
+          setTimeout(() => {
+            this.$router.push('/login')
+          }, 2000)
         }
-      })
-    },
-
-    // Function for showing the success alert modal
-    showAlert() {
-      Swal.fire({
-        title: "<span class='text-lg font-bold'>Password Berhasil Diubah</span>",
-        icon: 'success',
-        confirmButtonText: 'Tutup',
-        buttonsStyling: false,
-        customClass: {
-          icon: 'custom-icon',
-          confirmButton: 'bg-red-600 hover:bg-red-600 text-white py-2 w-28 rounded-md',
-        },
-      })
+      } catch (error) {
+        console.error('Reset password error:', error.response?.data) // Debug error
+        this.errorMessage =
+          error.response?.data?.error || 'Failed to reset password. Please try again.'
+      } finally {
+        this.isLoading = false
+      }
     },
   },
 }
