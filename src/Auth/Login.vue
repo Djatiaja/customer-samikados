@@ -121,8 +121,8 @@
 import AuthHeader from '@/components/AuthHeader.vue'
 import AuthMainButton from '@/components/AuthMainButton.vue'
 import AuthFooter from '@/components/AuthFooter.vue'
-import { useRouter } from 'vue-router'
-import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 
@@ -134,14 +134,16 @@ export default {
   },
   setup() {
     const router = useRouter()
+    const route = useRoute()
     const userInput = ref('')
     const password = ref('')
     const rememberMe = ref(false)
     const loading = ref(false)
     const showPassword = ref(false)
     const baseUrl = import.meta.env.VITE_API_BASE_URL
+
     console.log('Base URL:', baseUrl)
-    if (!import.meta.env.VITE_API_BASE_URL) {
+    if (!baseUrl) {
       console.warn('VITE_API_BASE_URL is not defined in .env file. Using fallback URL.')
     }
 
@@ -174,7 +176,7 @@ export default {
             text: 'Anda berhasil masuk ke akun Anda',
             icon: 'success',
             showConfirmButton: false,
-            timer: 1500, // Auto-close after 1.5 seconds
+            timer: 1500,
           }).then(() => {
             router.push('/home')
           })
@@ -216,7 +218,12 @@ export default {
 
       try {
         loading.value = true
-        window.location.href = `${baseUrl}/auth/google`
+        const response = await axios.get(`${baseUrl}/customer/auth/google`)
+        if (response.data.status === 'success' && response.data.redirect_url) {
+          window.location.href = response.data.redirect_url
+        } else {
+          throw new Error('Failed to get Google redirect URL')
+        }
       } catch (error) {
         console.error('Error signing in with Google:', error)
         Swal.fire({
@@ -230,6 +237,42 @@ export default {
         loading.value = false
       }
     }
+
+    const handleGoogleCallback = async () => {
+      const token = route.query.token
+      const error = route.query.error
+
+      if (error) {
+        Swal.fire({
+          title: 'Error',
+          text: decodeURIComponent(error),
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#DC2626',
+        })
+        router.push('/login')
+        return
+      }
+
+      if (token) {
+        localStorage.setItem('token', token)
+        Swal.fire({
+          title: 'Berhasil Login',
+          text: 'Anda berhasil masuk dengan Google',
+          icon: 'success',
+          showConfirmButton: false,
+          timer: 1500,
+        }).then(() => {
+          router.push('/home')
+        })
+      }
+    }
+
+    onMounted(() => {
+      if (route.path === '/auth/customer/callback') {
+        handleGoogleCallback()
+      }
+    })
 
     const togglePasswordVisibility = () => {
       showPassword.value = !showPassword.value
