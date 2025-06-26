@@ -23,6 +23,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   { path: '/', redirect: '/samikados' },
   { path: '/login', component: Login, meta: { requiresGuest: true } },
+  { path: '/auth/customer/callback', component: Login, meta: { requiresGuest: true } },
   { path: '/register', component: Register, meta: { requiresGuest: true } },
   { path: '/verification', component: VerificationEmail },
   { path: '/forgot-password', component: ForgotPassword, meta: { requiresGuest: true } },
