@@ -466,7 +466,7 @@ export default {
       }
 
       // Check if order is unpaid
-      const unpaidStatuses = ['belum dibayar', 'unpaid', 'pending', 'masuk']
+      const unpaidStatuses = ['belum dibayar', 'unpaid']
       if (unpaidStatuses.includes(statusLower)) {
         return 'unpaid'
       }
@@ -477,7 +477,7 @@ export default {
       }
 
       // For processing/shipped orders, they should be paid
-      const paidStatuses = ['diproses', 'processing', 'dikirim', 'shipped', 'in_transit']
+      const paidStatuses = ['diproses', 'processing', 'dikirim', 'shipped', 'in_transit', 'masuk']
       if (paidStatuses.includes(statusLower)) {
         return 'paid'
       }
