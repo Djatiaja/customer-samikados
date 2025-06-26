@@ -78,6 +78,7 @@ export default {
       id: '',
       name: '',
       photo_url: '',
+      wa: '', // Tambahkan properti wa untuk menyimpan nomor WhatsApp
     })
 
     const productImages = ref([])
@@ -89,7 +90,7 @@ export default {
     const sizeOptions = ref([])
     const finishingOptions = ref([{ value: '0', label: 'Tanpa Finishing' }])
 
-    // Dummy review data
+    // Dummy review data (tetap sama)
     const reviews = ref([
       {
         id: 1,
@@ -138,13 +139,14 @@ export default {
 
         product.id = data.id || productId
         product.name = data.name || ''
-        product.soldCount = data.unit || '0'
+        product.soldCount = data.terjual || '0' // Ubah dari unit ke terjual
         product.description = data.description || ''
         product.price = data.variants.find((v) => v.is_default)?.price || data.price || 0
 
         seller.id = data.seller.id || ''
         seller.name = data.seller.name || 'Unknown Seller'
         seller.photo_url = data.seller.photo_url || 'https://placehold.co/600x400'
+        seller.wa = data.seller.wa || '' // Simpan nomor WhatsApp
 
         productImages.value = data.images
           .sort((a, b) => a.sort_order - b.sort_order)
@@ -342,16 +344,25 @@ export default {
         })
         return
       }
-      Swal.fire({
-        title: 'Chat dengan Penjual',
-        text: 'Fitur chat sedang dibuka...',
-        icon: 'info',
-        buttonsStyling: false,
-        customClass: {
-          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
-        },
-        confirmButtonText: 'Tutup',
-      })
+
+      if (seller.wa) {
+        // Ensure the URL is properly formatted
+        const waUrl = seller.wa.startsWith('http')
+          ? seller.wa
+          : `https://wa.me/${seller.wa.replace(/[^0-9]/g, '')}`
+        window.open(waUrl, '_blank') // Open WhatsApp link in a new tab
+      } else {
+        Swal.fire({
+          title: 'Error',
+          text: 'Nomor WhatsApp penjual tidak tersedia.',
+          icon: 'error',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
+          },
+          confirmButtonText: 'Tutup',
+        })
+      }
     }
 
     const addToCart = async () => {

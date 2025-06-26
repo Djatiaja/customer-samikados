@@ -43,7 +43,7 @@ const routes = [
   { path: '/track-order', component: TrackOrder, meta: { requiresAuth: true } },
   { path: '/review-order', component: ReviewOrder, meta: { requiresAuth: true } },
   { path: '/account-settings', component: AccountSetting, meta: { requiresAuth: true } },
-  { path: '/search-results', component: SearchResults, meta: { requiresAuth: true } },
+  { path: '/search-results', component: SearchResults },
   { path: '/:pathMatch(.*)*', component: NotFoundPage },
 ]
 

@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="flex flex-col min-h-screen">
     <HeaderAfterLogin @search-product="handleProductSearch" />
@@ -75,6 +74,7 @@
             :price="product.price.replace('Rp', '')"
             :link="product.link"
             :image="product.image"
+            :sellerName="product.sellerName"
           />
         </div>
       </div>
@@ -202,6 +202,7 @@ export default {
               price: `Rp${product.price.toLocaleString('id-ID')}`,
               image: product.thumbnail_url.replace(/\\\//g, '/'),
               link: `/product-details/${product.id}`,
+              sellerName: product.seller_name, // Add seller_name from API response
             }))
           } else {
             throw new Error('Data produk tidak valid')
@@ -273,4 +274,3 @@ export default {
   background-color: #b91c1c !important;
 }
 </style>
-```

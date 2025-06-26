@@ -1,6 +1,16 @@
 <template>
   <div class="flex flex-col min-h-screen">
-    <HeaderAfterLogin @search-product="handleProductSearch" />
+    <!-- Dynamically render header based on authentication status -->
+    <HeaderAfterLogin
+      v-if="isLoggedIn"
+      @search-product="handleProductSearch"
+      @search-location="handleLocationSearch"
+    />
+    <HeaderBeforeLogin
+      v-else
+      @search-product="handleProductSearch"
+      @search-location="handleLocationSearch"
+    />
 
     <div class="container mx-auto p-4 sm:p-8 flex-1">
       <!-- Search Results -->
@@ -33,7 +43,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Swal from 'sweetalert2'
@@ -41,9 +51,10 @@ import Swal from 'sweetalert2'
 import AuthFooter from '@/components/AuthFooter.vue'
 import ProductCard1 from '@/components/ProductCard1.vue'
 import HeaderAfterLogin from '@/components/HeaderAfterLogin.vue'
+import HeaderBeforeLogin from '@/components/HeaderBeforeLogin.vue'
 
 export default {
-  components: { HeaderAfterLogin, AuthFooter, ProductCard1 },
+  components: { HeaderAfterLogin, HeaderBeforeLogin, AuthFooter, ProductCard1 },
   setup() {
     const baseUrl = import.meta.env.VITE_API_BASE_URL
     const route = useRoute()
@@ -52,6 +63,11 @@ export default {
     const loadingProducts = ref(false)
     const searchQuery = ref('')
     const locationQuery = ref('')
+
+    // Check if user is logged in by checking for token in localStorage
+    const isLoggedIn = computed(() => {
+      return !!localStorage.getItem('token')
+    })
 
     // Debounce function
     const debounce = (func, wait) => {
@@ -72,16 +88,19 @@ export default {
       try {
         loadingProducts.value = true
         const token = localStorage.getItem('token')
-        if (!token) throw new Error('Token autentikasi tidak ada')
-
         const endpoint = isLocationSearch ? `${baseUrl}/search/address` : `${baseUrl}/search`
-        const response = await axios.get(endpoint, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { query: query.trim() },
-        })
+        const config = token
+          ? {
+              headers: { Authorization: `Bearer ${token}` },
+              params: { query: query.trim() },
+            }
+          : {
+              params: { query: query.trim() },
+            }
+
+        const response = await axios.get(endpoint, config)
 
         if (response.data.status === 'success') {
-          // Handle both product and location search responses
           const rawProducts = isLocationSearch ? response.data.data.products : response.data.data
           if (Array.isArray(rawProducts)) {
             products.value = rawProducts.map((product) => ({
@@ -104,12 +123,27 @@ export default {
         }
       } catch (error) {
         console.error('Error fetching search results:', error)
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error.message || 'Gagal memuat produk',
-        })
         products.value = []
+        if (error.response?.status === 401) {
+          Swal.fire({
+            icon: 'info',
+            title: 'Login Diperlukan',
+            text: 'Silakan login untuk menggunakan fitur pencarian',
+            confirmButtonText: 'Login Sekarang',
+            showCancelButton: true,
+            cancelButtonText: 'Batal',
+          }).then((result) => {
+            if (result.isConfirmed) {
+              router.push('/login')
+            }
+          })
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.message || 'Gagal memuat produk',
+          })
+        }
       } finally {
         loadingProducts.value = false
       }
@@ -119,8 +153,14 @@ export default {
     const handleProductSearch = (query) => {
       searchQuery.value = query
       locationQuery.value = ''
-      // Update URL query parameter
       router.push({ path: '/search-results', query: { query: query.trim() } })
+    }
+
+    // Handle location search from header
+    const handleLocationSearch = (query) => {
+      locationQuery.value = query
+      searchQuery.value = ''
+      router.push({ path: '/search-results', query: { address: query.trim() } })
     }
 
     // Debounced search
@@ -171,6 +211,8 @@ export default {
       locationQuery,
       loadingProducts,
       handleProductSearch,
+      handleLocationSearch,
+      isLoggedIn,
     }
   },
 }
