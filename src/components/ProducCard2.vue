@@ -1,4 +1,3 @@
-```vue
 <template>
   <router-link
     :to="link"
@@ -11,7 +10,11 @@
     />
     <h4 class="font-bold text-sm sm:text-base lg:text-lg truncate">{{ name }}</h4>
     <p class="text-xs sm:text-sm lg:text-base">{{ price }}</p>
-    <p class="text-xs sm:text-sm lg:text-base">{{ sold }}</p>
+    <p class="text-xs sm:text-sm lg:text-base">{{ sold }} Terjual</p>
+    <div class="flex items-center mt-2">
+      <i class="fas fa-store mr-2 text-xs sm:text-sm lg:text-base"></i>
+      <p class="text-xs sm:text-sm lg:text-base truncate">{{ seller_name }}</p>
+    </div>
   </router-link>
 </template>
 
@@ -38,7 +41,10 @@ export default {
       type: String,
       required: true,
     },
+    seller_name: {
+      type: String,
+      required: true,
+    },
   },
 }
 </script>
-```

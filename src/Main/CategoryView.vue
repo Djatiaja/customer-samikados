@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="flex flex-col min-h-screen">
     <HeaderBeforeLogin v-if="!isAuthenticated" />
@@ -85,6 +84,7 @@
             :name="product.name"
             :price="product.price"
             :sold="product.sold"
+            :seller_name="product.seller_name"
           />
         </div>
         <p v-else class="text-center text-gray-600">Tidak ada produk untuk kategori ini</p>
@@ -203,7 +203,8 @@ export default {
             price: `Rp${product.price.toLocaleString('id-ID')}`,
             image: product.thumbnail_url.replace(/\\\//g, '/'),
             link: `/product-details/${product.id}`,
-            sold: '0 Terjual',
+            sold: product.terjual,
+            seller_name: product.seller_name,
           }))
         } else {
           throw new Error(response.data.message || 'Gagal memuat produk')
@@ -284,4 +285,3 @@ export default {
   box-sizing: border-box;
 }
 </style>
-```
