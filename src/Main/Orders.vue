@@ -116,38 +116,41 @@ export default {
     async initializeData() {
       this.isLoading = true
       try {
-        await Promise.all([this.fetchOrderStatuses(), this.fetchOrders()])
+        // Fetch statuses first (always succeeds now since it's hardcoded)
+        await this.fetchOrderStatuses()
+        // Then fetch orders (won't throw error anymore)
+        await this.fetchOrders()
       } catch (error) {
         console.error('Error initializing data:', error)
-        this.showErrorMessage('Gagal memuat data. Silakan refresh halaman.')
+        // Error already handled in fetchOrders, just log here
       } finally {
         this.isLoading = false
       }
     },
     async fetchOrderStatuses() {
       try {
-        const response = await axios.get(`${baseUrl}/customer/orders/statuses`)
-        console.log('Order statuses response:', response.data) // Debug log
-
-        if (response.data && response.data.status === 'success' && response.data.data) {
-          this.orderStatuses = response.data.data
-        } else {
-          console.warn('Unexpected order statuses response format:', response.data)
-          this.orderStatuses = []
-        }
+        // Hardcoded statuses karena endpoint /statuses tidak tersedia
+        this.orderStatuses = [
+          { id: 1, name: 'Masuk' },
+          { id: 2, name: 'Diproses' },
+          { id: 3, name: 'selesai' },
+          { id: 4, name: 'batal' },
+          { id: 7, name: 'Menunggu Konfirmasi' },
+        ]
+        console.log('Order statuses loaded (hardcoded):', this.orderStatuses)
       } catch (error) {
-        console.error('Error fetching order statuses:', error)
+        console.error('Error setting order statuses:', error)
         this.orderStatuses = []
-        throw error // Re-throw to be caught by initializeData
+        throw error
       }
     },
     async fetchOrders() {
       try {
-        const response = await axios.get(`${baseUrl}/customer/orders`)
+        const response = await axios.get(`${baseUrl}/v2/customer/orders`)
         console.log('Orders response:', response.data) // Debug log
 
         if (response.data && response.data.status === 'success' && response.data.data) {
-          // Handle different possible response structures
+          // Handle paginated response
           const ordersData = response.data.data.data || response.data.data
 
           if (Array.isArray(ordersData)) {
@@ -162,8 +165,12 @@ export default {
         }
       } catch (error) {
         console.error('Error fetching orders:', error)
+        // Don't throw error, just show empty state
         this.orders = []
-        throw error // Re-throw to be caught by initializeData
+        // Only show error if it's not a 404 or empty response
+        if (error.response?.status !== 404) {
+          this.showErrorMessage('Gagal memuat daftar pesanan. Silakan coba lagi.')
+        }
       }
     },
     mapOrderData(order) {
@@ -244,7 +251,7 @@ export default {
     },
     async processCancelOrder() {
       try {
-        await axios.post(`${baseUrl}/customer/orders/${this.currentOrderId}/cancel`)
+        await axios.post(`${baseUrl}/v2/customer/orders/${this.currentOrderId}/cancel`)
 
         // Update the order status locally
         const orderIndex = this.orders.findIndex((order) => order.id === this.currentOrderId)

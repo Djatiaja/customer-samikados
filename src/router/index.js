@@ -14,6 +14,7 @@ import HomeBeforeLogin from '@/Main/HomeBeforeLogin.vue'
 import NotFoundPage from '@/Main/NotFoundPage.vue'
 import Notification from '@/Main/Notification.vue'
 import Orders from '@/Main/Orders.vue'
+import PreDirectCheckout from '@/Main/PreDirectCheckout.vue'
 import RedirectPage from '@/Main/RedirectPage.vue'
 import ReviewOrder from '@/Main/ReviewOrder.vue'
 import SearchResults from '@/Main/SearchResults.vue'
@@ -40,6 +41,7 @@ const routes = [
   { path: '/cart', component: Cart, meta: { requiresAuth: true } },
   { path: '/notifications', component: Notification, meta: { requiresAuth: true } },
   { path: '/checkout', component: Checkout, meta: { requiresAuth: true } },
+  { path: '/pre-direct-checkout', component: PreDirectCheckout, meta: { requiresAuth: true } },
   { path: '/track-order', component: TrackOrder, meta: { requiresAuth: true } },
   { path: '/review-order', component: ReviewOrder, meta: { requiresAuth: true } },
   { path: '/account-settings', component: AccountSetting, meta: { requiresAuth: true } },

@@ -754,10 +754,17 @@ export default {
         return
       }
 
-      const cartIds = selectedItems.map((item) => item.id)
+      // Redirect to PreDirectCheckout with cart item data
+      const item = selectedItems[0]
       this.$router.push({
-        path: '/checkout',
-        query: { cart_ids: cartIds },
+        path: '/pre-direct-checkout',
+        query: {
+          product_id: item.productId,
+          variant_id: item.specs.variantId,
+          finishing_id: item.specs.finishingId === '0' ? '' : item.specs.finishingId,
+          quantity: item.quantity,
+          note: item.specs.note || '',
+        },
       })
     },
     async increaseQuantity(sellerIndex, itemIndex) {

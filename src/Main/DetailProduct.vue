@@ -490,73 +490,17 @@ export default {
         return
       }
 
-      try {
-        isAddingToCart.value = true
-
-        const formData = new FormData()
-        formData.append('product_id', product.id)
-        formData.append('quantity', quantity.value)
-        formData.append('product_variant_id', selectedSize.value)
-        formData.append(
-          'product_finishing_id',
-          selectedFinishing.value === '0' ? '' : selectedFinishing.value,
-        )
-        formData.append('additional_info', note.value)
-
-        const token = localStorage.getItem('token')
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/customer/cart`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data',
-            },
-          },
-        )
-
-        if (response.data.status === 'success') {
-          const cartId = response.data.data.id
-          Swal.fire({
-            title: 'Berhasil!',
-            text: 'Produk ditambahkan ke keranjang, menuju checkout...',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false,
-            customClass: {
-              popup: 'rounded-lg',
-            },
-          }).then(() => {
-            router.push({
-              path: '/checkout',
-              query: { cart_ids: [cartId] },
-            })
-          })
-        }
-      } catch (error) {
-        console.error('Error creating cart for checkout:', error)
-        let errorMessage = 'Gagal membuat pesanan'
-
-        if (error.response?.data?.message) {
-          errorMessage = error.response.data.message
-        } else if (error.response?.status === 401) {
-          errorMessage = 'Sesi Anda telah berakhir. Silakan login kembali.'
-          router.push('/login')
-        }
-
-        Swal.fire({
-          title: 'Error',
-          text: errorMessage,
-          icon: 'error',
-          buttonsStyling: false,
-          customClass: {
-            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg text-sm sm:text-base',
-          },
-          confirmButtonText: 'Tutup',
-        })
-      } finally {
-        isAddingToCart.value = false
-      }
+      // Redirect to PreDirectCheckout with product data
+      router.push({
+        path: '/pre-direct-checkout',
+        query: {
+          product_id: product.id,
+          variant_id: selectedSize.value,
+          finishing_id: selectedFinishing.value === '0' ? '' : selectedFinishing.value,
+          quantity: quantity.value,
+          note: note.value,
+        },
+      })
     }
 
     return {

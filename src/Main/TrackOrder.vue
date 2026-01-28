@@ -63,12 +63,20 @@
             <div class="space-y-1">
               <p class="text-sm text-gray-600 font-medium">Status Pembayaran</p>
               <span
+                v-if="order.payment?.payment_status"
                 class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold"
-                :class="
-                  getPaymentStatusClass(getPaymentStatus(order.order_status?.name || 'Unknown'))
-                "
+                :style="{
+                  backgroundColor: order.payment.payment_status.color + '20',
+                  color: order.payment.payment_status.color
+                }"
               >
-                {{ getPaymentStatusText(getPaymentStatus(order.order_status?.name || 'Unknown')) }}
+                {{ order.payment.payment_status.name }}
+              </span>
+              <span v-else-if="(order.order_status?.name || '').toLowerCase() === 'menunggu konfirmasi'" class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
+                Menunggu Konfirmasi
+              </span>
+              <span v-else class="inline-flex px-2 sm:px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800">
+                Tidak Tersedia
               </span>
             </div>
           </div>
@@ -102,6 +110,35 @@
             <div class="space-y-1 sm:col-span-2">
               <p class="text-sm text-gray-600 font-medium">Catatan Tambahan</p>
               <p class="text-base font-semibold text-black">{{ order.additional_info || '-' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Info -->
+        <div
+          v-if="order.payment"
+          class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow duration-200"
+        >
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <div class="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+            Informasi Pembayaran
+          </h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div class="space-y-1">
+              <p class="text-sm text-gray-600 font-medium">Kode Pembayaran</p>
+              <p class="text-base font-semibold text-black">{{ order.payment.payment_code || '-' }}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-gray-600 font-medium">Metode Pembayaran</p>
+              <p class="text-base font-semibold text-black">{{ order.payment.payment_method?.name || '-' }}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-gray-600 font-medium">Jumlah Pembayaran</p>
+              <p class="text-base font-semibold text-black">{{ formatCurrency(order.payment.amount || 0) }}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-gray-600 font-medium">Tanggal Pembayaran</p>
+              <p class="text-base font-semibold text-black">{{ formatDate(order.payment.created_at) || '-' }}</p>
             </div>
           </div>
         </div>
@@ -219,6 +256,85 @@
                 <div v-if="item.additional_info" class="text-sm text-gray-600 italic">
                   <strong>Catatan:</strong> {{ item.additional_info }}
                 </div>
+
+                <!-- Uploaded Files Section -->
+                <div v-if="item.files && item.files.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+                  <h4 class="text-sm font-semibold text-gray-700 mb-3">File Design yang Diupload:</h4>
+                  <div class="space-y-2">
+                    <div
+                      v-for="file in item.files"
+                      :key="file.id"
+                      class="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                    >
+                      <div class="flex items-center space-x-3 flex-1 min-w-0">
+                        <!-- Link Icon -->
+                        <svg
+                          v-if="file.link"
+                          class="w-8 h-8 text-blue-600 flex-shrink-0"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <!-- PDF Icon -->
+                        <svg
+                          v-else-if="file.file_type && file.file_type.includes('pdf')"
+                          class="w-8 h-8 text-red-600 flex-shrink-0"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <!-- Image Icon -->
+                        <svg
+                          v-else
+                          class="w-8 h-8 text-blue-600 flex-shrink-0"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium text-gray-900 truncate">
+                            {{ file.link ? (file.link.length > 50 ? file.link.substring(0, 50) + '...' : file.link) : (file.file_name || 'File') }}
+                          </p>
+                          <p v-if="file.file_type" class="text-xs text-gray-500">{{ file.file_type }}</p>
+                          <p v-else-if="file.link" class="text-xs text-blue-600">Link URL</p>
+                          <p v-else class="text-xs text-gray-400">File Design</p>
+                        </div>
+                      </div>
+                      <a
+                        v-if="file.file_path"
+                        :href="`${baseUrl}/storage/${file.file_path}`"
+                        target="_blank"
+                        class="flex-shrink-0 text-red-600 hover:text-red-700 text-sm font-semibold ml-3"
+                      >
+                        Lihat
+                      </a>
+                      <a
+                        v-else-if="file.link"
+                        :href="file.link"
+                        target="_blank"
+                        class="flex-shrink-0 text-blue-600 hover:text-blue-700 text-sm font-semibold ml-3"
+                      >
+                        Buka Link
+                      </a>
+                      <span v-else class="flex-shrink-0 text-gray-400 text-sm ml-3">-</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -262,8 +378,20 @@
 
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center pt-4 sm:pt-6">
+          <!-- Menunggu Konfirmasi -->
+          <template v-if="(order.order_status?.name || '').toLowerCase() === 'menunggu konfirmasi'">
+            <div class="text-center">
+              <span
+                class="bg-yellow-100 text-yellow-800 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold inline-flex items-center space-x-2"
+              >
+                <font-awesome-icon :icon="['fas', 'clock']" />
+                <span>Menunggu Konfirmasi Penjual</span>
+              </span>
+            </div>
+          </template>
+
           <!-- Belum Dibayar -->
-          <template v-if="isUnpaidStatus(order.order_status?.name || '')">
+          <template v-else-if="isUnpaidStatus(order.order_status?.name || '')">
             <button
               @click="processPayment"
               class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
@@ -384,7 +512,7 @@ export default {
 
       try {
         const token = localStorage.getItem('auth_token')
-        const response = await axios.get(`${this.baseUrl}/customer/orders/${orderId}`, {
+        const response = await axios.get(`${this.baseUrl}/v2/customer/orders/${orderId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -404,7 +532,16 @@ export default {
             quantity: item.quantity || 0,
             subtotal_weight: item.subtotal_weight || 0,
             subtotal_price: item.subtotal_price || 0,
+            files: item.files || [], // Add files array
           }))
+
+          // Debug: log files data
+          console.log('Order detail with files:', this.order.order_detail)
+          this.order.order_detail.forEach((item, idx) => {
+            if (item.files && item.files.length > 0) {
+              console.log(`Item ${idx} files:`, item.files)
+            }
+          })
         } else {
           throw new Error(response.data.message || 'Gagal memuat detail pesanan.')
         }
@@ -448,6 +585,12 @@ export default {
     },
 
     isUnpaidStatus(orderStatus) {
+      // Check from payment status if available
+      if (this.order?.payment?.payment_status) {
+        const paymentStatusName = this.order.payment.payment_status.name.toLowerCase()
+        return paymentStatusName === 'pending' || paymentStatusName === 'unpaid'
+      }
+      // Fallback to order status (exclude 'menunggu konfirmasi')
       const unpaidStatuses = ['belum dibayar', 'unpaid']
       return unpaidStatuses.includes(orderStatus.toLowerCase())
     },
@@ -457,34 +600,7 @@ export default {
       return shippedStatuses.includes(orderStatus.toLowerCase())
     },
 
-    getPaymentStatus(orderStatus) {
-      const statusLower = orderStatus.toLowerCase()
 
-      // Check if order is cancelled first (highest priority)
-      if (statusLower === 'cancelled' || statusLower === 'dibatalkan' || statusLower === 'batal') {
-        return 'cancelled'
-      }
-
-      // Check if order is unpaid
-      const unpaidStatuses = ['belum dibayar', 'unpaid']
-      if (unpaidStatuses.includes(statusLower)) {
-        return 'unpaid'
-      }
-
-      // Check if order is completed
-      if (statusLower === 'completed' || statusLower === 'selesai') {
-        return 'paid'
-      }
-
-      // For processing/shipped orders, they should be paid
-      const paidStatuses = ['diproses', 'processing', 'dikirim', 'shipped', 'in_transit', 'masuk']
-      if (paidStatuses.includes(statusLower)) {
-        return 'paid'
-      }
-
-      // Default fallback
-      return 'unknown'
-    },
 
     copyTrackingNumber() {
       if (!this.order?.shipping_airway_bill) {
@@ -778,39 +894,7 @@ export default {
       }
     },
 
-    getPaymentStatusClass(status) {
-      switch (status) {
-        case 'paid':
-          return 'bg-green-100 text-green-800'
-        case 'unpaid':
-          return 'bg-red-100 text-red-800'
-        case 'pending':
-          return 'bg-yellow-100 text-yellow-800'
-        case 'cancelled':
-          return 'bg-gray-100 text-gray-800'
-        case 'failed':
-          return 'bg-red-100 text-red-800'
-        default:
-          return 'bg-gray-100 text-gray-800'
-      }
-    },
 
-    getPaymentStatusText(status) {
-      switch (status) {
-        case 'paid':
-          return 'Sudah Dibayar'
-        case 'unpaid':
-          return 'Belum Dibayar'
-        case 'pending':
-          return 'Menunggu Pembayaran'
-        case 'cancelled':
-          return 'Pesanan Dibatalkan'
-        case 'failed':
-          return 'Pembayaran Gagal'
-        default:
-          return 'Status Tidak Diketahui'
-      }
-    },
 
     isCancelledStatus(orderStatus) {
       const cancelledStatuses = ['cancelled', 'dibatalkan', 'batal']
