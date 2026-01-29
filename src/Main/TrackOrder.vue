@@ -316,8 +316,8 @@
                         </div>
                       </div>
                       <a
-                        v-if="file.file_path"
-                        :href="`${baseUrl}/storage/${file.file_path}`"
+                        v-if="file.file_url"
+                        :href="file.file_url"
                         target="_blank"
                         class="flex-shrink-0 text-red-600 hover:text-red-700 text-sm font-semibold ml-3"
                       >

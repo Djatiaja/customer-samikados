@@ -260,8 +260,8 @@ import AuthFooter from '@/components/AuthFooter.vue'
 import FileUploadSection from '@/components/FileUploadSection.vue'
 import Swal from 'sweetalert2'
 import axios from 'axios'
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 
 export default {
   name: 'PreDirectCheckout',
@@ -276,6 +276,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const isSubmitting = ref(false)
+    const orderCreated = ref(false)
 
     // Customer Info
     const customerInfo = ref({
@@ -535,14 +536,22 @@ export default {
           const orderId = response.data.data.id
           localStorage.setItem('order_id', orderId)
 
+          // Mark order as created to prevent navigation back
+          orderCreated.value = true
+
+          // Set flag to prevent returning to this checkout page
+          sessionStorage.setItem('checkout_completed', 'true')
+
           Swal.fire({
             title: 'Pesanan Berhasil Dibuat!',
             text: 'Pesanan Anda menunggu konfirmasi dari penjual',
             icon: 'success',
             confirmButtonColor: '#dc2626',
             confirmButtonText: 'Lihat Pesanan',
+            allowOutsideClick: false,
           }).then(() => {
-            router.push('/track-order')
+            // Use replace to prevent back navigation
+            router.replace('/track-order')
           })
         } else {
           throw new Error(response.data.message || 'Gagal membuat pesanan')
@@ -570,6 +579,22 @@ export default {
         return
       }
 
+      // Check if checkout was already completed
+      const checkoutCompleted = sessionStorage.getItem('checkout_completed')
+      if (checkoutCompleted === 'true') {
+        sessionStorage.removeItem('checkout_completed')
+        Swal.fire({
+          title: 'Pesanan Sudah Dibuat',
+          text: 'Pesanan untuk produk ini sudah berhasil dibuat sebelumnya',
+          icon: 'info',
+          confirmButtonColor: '#dc2626',
+          confirmButtonText: 'Lihat Pesanan',
+        }).then(() => {
+          router.replace('/orders')
+        })
+        return
+      }
+
       // Get data from route query
       productId.value = route.query.product_id
       variantId.value = route.query.variant_id
@@ -592,6 +617,55 @@ export default {
         error.value = 'Gagal memuat data. Silakan coba lagi.'
       } finally {
         loading.value = false
+      }
+    })
+
+    // Prevent user from navigating back after order is created
+    onBeforeRouteLeave((to, from, next) => {
+      if (orderCreated.value) {
+        // If order was created, don't allow back navigation to this page
+        next()
+      } else if (uploadedFiles.value.length > 0) {
+        // If user has uploaded files but hasn't submitted, warn them
+        Swal.fire({
+          title: 'Batalkan Checkout?',
+          text: 'File yang sudah diupload akan hilang. Yakin ingin keluar?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#dc2626',
+          cancelButtonColor: '#6B7280',
+          confirmButtonText: 'Ya, Keluar',
+          cancelButtonText: 'Batal',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            next()
+          } else {
+            next(false)
+          }
+        })
+      } else {
+        next()
+      }
+    })
+
+    // Handle browser back button
+    const handleBeforeUnload = (e) => {
+      if (uploadedFiles.value.length > 0 && !orderCreated.value) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    onMounted(() => {
+      window.addEventListener('beforeunload', handleBeforeUnload)
+    })
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+
+      // Clear sessionStorage flag when leaving page normally (not after order creation)
+      if (!orderCreated.value) {
+        sessionStorage.removeItem('checkout_completed')
       }
     })
 
