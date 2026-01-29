@@ -92,12 +92,12 @@
     </div>
 
     <!-- Uploaded Files List -->
-    <div v-if="uploadedFiles.length > 0" class="mt-6 space-y-3">
-      <h4 class="text-base sm:text-lg font-semibold">File yang Diupload ({{ uploadedFiles.length }})</h4>
+    <div v-if="fileMetadata.length > 0" class="mt-6 space-y-3">
+      <h4 class="text-base sm:text-lg font-semibold">File yang Diupload ({{ fileMetadata.length }})</h4>
 
       <div
-        v-for="(file, index) in uploadedFiles"
-        :key="index"
+        v-for="(metadata, index) in fileMetadata"
+        :key="metadata.id"
         class="flex items-center justify-between bg-gray-50 p-3 sm:p-4 rounded-lg"
       >
         <div class="flex items-center space-x-3 flex-1 min-w-0">
@@ -105,7 +105,7 @@
           <div class="flex-shrink-0">
             <!-- Link Icon -->
             <svg
-              v-if="file.isLink"
+              v-if="metadata.isLink"
               class="w-8 h-8 sm:w-10 sm:h-10 text-blue-600"
               fill="currentColor"
               viewBox="0 0 20 20"
@@ -118,7 +118,7 @@
             </svg>
             <!-- PDF Icon -->
             <svg
-              v-else-if="file.type.includes('pdf')"
+              v-else-if="metadata.type && metadata.type.includes('pdf')"
               class="w-8 h-8 sm:w-10 sm:h-10 text-red-600"
               fill="currentColor"
               viewBox="0 0 20 20"
@@ -131,22 +131,35 @@
             </svg>
             <!-- Image Preview -->
             <img
-              v-else-if="file.preview"
-              :src="file.preview"
-              :alt="file.name"
+              v-else-if="metadata.preview"
+              :src="metadata.preview"
+              :alt="metadata.name"
               class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded"
             />
+            <!-- Generic File Icon -->
+            <svg
+              v-else
+              class="w-8 h-8 sm:w-10 sm:h-10 text-gray-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                clip-rule="evenodd"
+              />
+            </svg>
           </div>
 
           <!-- File Info -->
           <div class="flex-1 min-w-0">
             <p class="text-sm sm:text-base font-medium text-gray-900 truncate">
-              {{ file.name || file.link }}
+              {{ metadata.name || metadata.link }}
             </p>
-            <p v-if="file.size" class="text-xs sm:text-sm text-gray-500">
-              {{ formatFileSize(file.size) }}
+            <p v-if="metadata.size" class="text-xs sm:text-sm text-gray-500">
+              {{ formatFileSize(metadata.size) }}
             </p>
-            <p v-if="file.isLink" class="text-xs sm:text-sm text-blue-600">
+            <p v-if="metadata.isLink" class="text-xs sm:text-sm text-blue-600">
               Link URL
             </p>
           </div>
@@ -260,7 +273,7 @@
 </template>
 
 <script>
-import { ref, watch } from 'vue'
+import { ref, shallowRef, onUnmounted } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 
@@ -285,13 +298,18 @@ export default {
     },
     maxFileSizeMB: {
       type: Number,
+      default: 50,
+    },
+    maxFiles: {
+      type: Number,
       default: 10,
     },
   },
   emits: ['update:modelValue', 'price-checked'],
   setup(props, { emit }) {
     const fileInput = ref(null)
-    const uploadedFiles = ref([...props.modelValue])
+    // Use shallowRef to prevent deep reactivity on File objects
+    const uploadedFiles = shallowRef([])
     const isDragging = ref(false)
     const isCheckingPrice = ref(false)
     const priceEstimation = ref(null)
@@ -299,29 +317,14 @@ export default {
     const baseUrl = import.meta.env.VITE_API_BASE_URL
     const token = localStorage.getItem('token')
 
-    // New: Input mode and link input
+    // Input mode and link input
     const inputMode = ref('file')
     const linkInput = ref('')
 
-    // Watch for external changes
-    watch(
-      () => props.modelValue,
-      (newVal) => {
-        uploadedFiles.value = [...newVal]
-      },
-    )
-
-    // Watch for changes and emit to parent
-    watch(
-      uploadedFiles,
-      (newVal) => {
-        emit('update:modelValue', newVal)
-      },
-      { deep: true },
-    )
+    // Store file metadata separately (lightweight)
+    const fileMetadata = ref([])
 
     const handleModeChange = () => {
-      // Clear error when changing mode
       errorMessage.value = ''
       linkInput.value = ''
     }
@@ -346,18 +349,40 @@ export default {
         return
       }
 
+      // Check max files limit
+      if (uploadedFiles.value.length >= props.maxFiles) {
+        errorMessage.value = `Maksimal ${props.maxFiles} file`
+        Swal.fire({
+          title: 'Batas File Tercapai',
+          text: errorMessage.value,
+          icon: 'warning',
+          confirmButtonColor: '#dc2626',
+        })
+        return
+      }
+
       // Check if link already exists
-      if (uploadedFiles.value.some((f) => f.isLink && f.link === linkInput.value)) {
+      const existingLink = fileMetadata.value.find(
+        (f) => f.isLink && f.link === linkInput.value
+      )
+      if (existingLink) {
         errorMessage.value = 'Link ini sudah ditambahkan'
         return
       }
 
-      // Add link to uploaded files
-      uploadedFiles.value.push({
+      // Add link metadata
+      const linkData = {
+        id: Date.now() + Math.random(),
         isLink: true,
         link: linkInput.value,
         name: linkInput.value.split('/').pop() || 'Link File',
-      })
+      }
+
+      fileMetadata.value.push(linkData)
+      uploadedFiles.value.push(linkData)
+
+      // Emit immediately
+      emit('update:modelValue', [...uploadedFiles.value])
 
       linkInput.value = ''
 
@@ -383,7 +408,21 @@ export default {
     const processFiles = (files) => {
       errorMessage.value = ''
       const maxSize = props.maxFileSizeMB * 1024 * 1024
-      const validFiles = []
+
+      // Check max files limit
+      if (uploadedFiles.value.length + files.length > props.maxFiles) {
+        errorMessage.value = `Maksimal ${props.maxFiles} file. Anda sudah memiliki ${uploadedFiles.value.length} file.`
+        Swal.fire({
+          title: 'Batas File Tercapai',
+          text: errorMessage.value,
+          icon: 'warning',
+          confirmButtonColor: '#dc2626',
+        })
+        return
+      }
+
+      const newFiles = []
+      const newMetadata = []
 
       files.forEach((file) => {
         // Validate file type
@@ -398,19 +437,33 @@ export default {
           return
         }
 
-        // Create preview for images
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            file.preview = e.target.result
-          }
-          reader.readAsDataURL(file)
+        // Create lightweight metadata for display
+        const metadata = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          isLink: false,
+          preview: null,
         }
 
-        validFiles.push(file)
+        // Create preview URL only for small images
+        if (file.type.startsWith('image/') && file.size < 5 * 1024 * 1024) {
+          metadata.preview = URL.createObjectURL(file)
+        }
+
+        newMetadata.push(metadata)
+        newFiles.push(file)
       })
 
-      uploadedFiles.value = [...uploadedFiles.value, ...validFiles]
+      // Update metadata for display
+      fileMetadata.value = [...fileMetadata.value, ...newMetadata]
+
+      // Update actual files array (NOT reactive)
+      uploadedFiles.value = [...uploadedFiles.value, ...newFiles]
+
+      // Emit to parent immediately
+      emit('update:modelValue', [...uploadedFiles.value])
 
       // Clear input
       if (fileInput.value) {
@@ -419,7 +472,20 @@ export default {
     }
 
     const removeFile = (index) => {
+      const metadata = fileMetadata.value[index]
+
+      // Cleanup object URL to prevent memory leak
+      if (metadata && metadata.preview && !metadata.isLink) {
+        URL.revokeObjectURL(metadata.preview)
+      }
+
+      // Remove from both arrays
+      fileMetadata.value.splice(index, 1)
       uploadedFiles.value.splice(index, 1)
+
+      // Emit to parent
+      emit('update:modelValue', [...uploadedFiles.value])
+
       priceEstimation.value = null
       errorMessage.value = ''
     }
@@ -501,15 +567,25 @@ export default {
       const k = 1024
       const sizes = ['Bytes', 'KB', 'MB', 'GB']
       const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+      return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
     }
 
     const formatPrice = (price) => {
       return `Rp${price.toLocaleString('id-ID')}`
     }
 
+    // Cleanup all object URLs when component is destroyed
+    onUnmounted(() => {
+      fileMetadata.value.forEach((metadata) => {
+        if (metadata.preview && !metadata.isLink) {
+          URL.revokeObjectURL(metadata.preview)
+        }
+      })
+    })
+
     return {
       fileInput,
+      fileMetadata, // Use metadata for display instead of actual files
       uploadedFiles,
       isDragging,
       isCheckingPrice,
